@@ -1,33 +1,53 @@
-import 'package:blogapp_flutter/screens/dashboard/blog_list.dart';
-import 'package:blogapp_flutter/screens/dashboard/dashboard_shell.dart';
-import 'package:blogapp_flutter/screens/dashboard/profile.dart';
-import 'package:go_router/go_router.dart';
+  import 'package:blogapp_flutter/providers/auth_provider.dart';
+  import 'package:blogapp_flutter/screens/blog_list.dart';
+  import 'package:blogapp_flutter/screens/profile.dart';
+  import 'package:blogapp_flutter/screens/root_shell.dart';
+  import 'package:go_router/go_router.dart';
 
-import 'screens/notfound.dart';
-import 'screens/auth.dart';
-import 'screens/home.dart';
+  import 'screens/notfound.dart';
+  import 'screens/auth.dart';
+  import 'screens/home.dart';
 
-final GoRouter appRouter = GoRouter(
-  routes: [
-    GoRoute(path: '/', builder: (context, state) => const Home()),
-    GoRoute(path: '/auth', builder: (context, state) => const Auth()),
-    ShellRoute(
-      builder: (context, state, child) => Dashboard(child: child),
+  GoRouter appRouter(AuthProvider authProvider) {
+    return GoRouter(
+      refreshListenable: authProvider,
+      redirect: (context, state) {
+        final user = authProvider.user;
+        final loggingIn = state.matchedLocation == '/auth';
+
+        if (user == null && !loggingIn) {
+          // If not signed in, redirect to /auth
+          return '/auth';
+        }
+        if (user != null && loggingIn) {
+          // If signed in and tries to go to /auth, redirect to home
+          return '/';
+        }
+        // No redirect needed
+        return null;
+      },
       routes: [
-        GoRoute(
-          path: '/dashboard',
-          redirect: (context, state) => '/dashboard/bloglist',
+        ShellRoute(
+          builder: (context, state, child) => RootShell(child: child),
+          routes: [
+            GoRoute(path: '/', builder: (context, state) => const Home()),
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const Profile(),
+            ),
+            GoRoute(
+              path: '/blogs',
+              builder: (context, state) => const BlogList(),
+            ),
+          ],
         ),
+
+        GoRoute(path: '/auth', builder: (context, state) => const Auth()),
+
         GoRoute(
-          path: '/dashboard/bloglist',
-          builder: (context, state) => const BlogList(),
-        ),
-        GoRoute(
-          path: '/dashboard/profile',
-          builder: (context, state) => const Profile(),
+          path: '/:path(.*)',
+          builder: (context, state) => const Notfound(),
         ),
       ],
-    ),
-    GoRoute(path: '/:path(.*)', builder: (context, state) => const Notfound()),
-  ],
-);
+    );
+  }
