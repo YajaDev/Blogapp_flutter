@@ -1,22 +1,27 @@
 import 'dart:async';
 
+import 'package:blogapp_flutter/services/image_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../models/profile.dart';
+import '../models/notif_message.dart';
 import '../services/auth_service.dart';
 import '../helper/safe_api_call.dart';
-import '../models/ui_message.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? user;
-  Map<String, dynamic>? profile;
+  Profile? profile;
   bool isLoading = false;
-  UiMessage? message;
+  NotifMessage? message;
 
   late final StreamSubscription<AuthState> _sub;
 
   AuthProvider() {
     _init();
   }
+
+  // ---------------- INIT ----------------
 
   void _init() {
     _sub = AuthService.authChanges.listen((data) async {
@@ -28,10 +33,20 @@ class AuthProvider extends ChangeNotifier {
       user = newUser;
 
       if (user != null) {
-        // update profile
-        profile = await SafeCall.run<Map<String, dynamic>?>(
+        final result = await SafeCall.run<Profile?>(
           () => AuthService.getProfile(user!.id),
         );
+
+        switch (result) {
+          case SafeSuccess(data: final profileData):
+            profile = profileData;
+            break;
+
+          case SafeFailure(errorMessage: final err):
+            profile = null;
+            message = NotifMessage(err, MessageType.error);
+            break;
+        }
       } else {
         profile = null;
       }
@@ -46,61 +61,98 @@ class AuthProvider extends ChangeNotifier {
     super.dispose();
   }
 
+  // ---------------- AUTH ----------------
+
   Future<void> signIn(String email, String password) async {
-    _startLoading();
-
-    final result = await SafeCall.run(
-      () => AuthService.signIn(email: email, password: password),
+    await _handleApiCall<User?>(
+      () => SafeCall.run(
+        () => AuthService.signIn(email: email, password: password),
+      ),
+      successMessage: 'Signed in successfully',
     );
-
-    if (result == null) {
-      _setMessage('Sign in failed', MessageType.error);
-      _stopLoading();
-      return;
-    }
-
-    _setMessage('Signed in successfully', MessageType.success);
-    _stopLoading();
   }
 
   Future<void> signUp(String email, String password, String username) async {
-    _startLoading();
-
-    final result = await SafeCall.run(
-      () => AuthService.signUp(
-        email: email,
-        password: password,
-        username: username,
+    await _handleApiCall<User?>(
+      () => SafeCall.run(
+        () => AuthService.signUp(
+          email: email,
+          password: password,
+          username: username,
+        ),
       ),
+      successMessage: 'Account created successfully',
     );
-
-    if (result == null) {
-      _setMessage('Sign up failed', MessageType.error);
-      _stopLoading();
-      return;
-    }
-
-    _setMessage('Account created successfully', MessageType.success);
-    _stopLoading();
   }
 
   Future<void> signOut() async {
-    await SafeCall.run(() => AuthService.signOut());
-    _setMessage('Signed out', MessageType.success);
+    await _handleApiCall<void>(
+      () => SafeCall.run(() => AuthService.signOut()),
+      successMessage: 'Signed out successfully',
+    );
   }
 
   // ---------------- PROFILE ----------------
 
   Future<void> updateProfile(Map<String, dynamic> data) async {
-    if (user == null) return;
+    final oldAvatar = profile?.avatarUrl;
 
-    await SafeCall.run(() => AuthService.updateProfile(user!.id, data));
+    final hasNewAvatar =
+        data.containsKey('avatar_url') && data['avatar_url'] != null;
 
-    profile = await AuthService.getProfile(user!.id);
-    notifyListeners();
+    final removedAvatar =
+        data.containsKey('avatar_url') && data['avatar_url'] == null;
+
+    await _handleApiCall<void>(
+      () => SafeCall.run(() async {
+        final updatedProfile = await AuthService.updateProfile(user!.id, data);
+
+        if (updatedProfile == null) throw Exception('Profile update failed');
+        profile = updatedProfile;
+
+        // Delete previous avatar url 
+        if ((hasNewAvatar || removedAvatar) && oldAvatar != null) {
+          await ImageService.deleteImage(
+            DeleteImageProps(imageUrl: oldAvatar, type: ImageType.avatar),
+          );
+        }
+      }),
+      successMessage: 'Profile updated successfully',
+    );
   }
 
-  // ---------------- UI HELPERS ----------------
+  // ---------------- HELPERS ----------------
+
+  Future<T?> _handleApiCall<T>(
+    Future<SafeResult<T>> Function() action, {
+    String? successMessage,
+  }) async {
+    _startLoading();
+
+    final result = await action();
+    T? data;
+
+    switch (result) {
+      case SafeSuccess(data: final d):
+        data = d;
+        if (successMessage != null) {
+          _setMessage(successMessage, MessageType.success);
+        }
+        break;
+
+      case SafeFailure(errorMessage: final err):
+        _setMessage(err, MessageType.error);
+        break;
+    }
+
+    _stopLoading();
+    return data;
+  }
+
+  void _setMessage(String text, MessageType type) {
+    message = NotifMessage(text, type);
+    notifyListeners();
+  }
 
   void clearMessage() {
     message = null;
@@ -115,11 +167,6 @@ class AuthProvider extends ChangeNotifier {
 
   void _stopLoading() {
     isLoading = false;
-    notifyListeners();
-  }
-
-  void _setMessage(String text, MessageType type) {
-    message = UiMessage(text, type);
     notifyListeners();
   }
 }

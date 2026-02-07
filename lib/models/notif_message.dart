@@ -1,8 +1,8 @@
 enum MessageType { success, error }
 
-class UiMessage {
+class NotifMessage {
   final String text;
   final MessageType type;
 
-  UiMessage(this.text, this.type);
+  NotifMessage(this.text, this.type);
 }

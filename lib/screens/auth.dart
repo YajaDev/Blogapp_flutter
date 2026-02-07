@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import '../models/ui_message.dart';
+import '../models/notif_message.dart';
 
 class Auth extends StatefulWidget {
   const Auth({super.key});
@@ -30,10 +30,7 @@ class _AuthState extends State<Auth> {
     final auth = context.read<AuthProvider>();
 
     if (isLogin) {
-      await auth.signIn(
-        emailCtrl.text.trim(),
-        passCtrl.text.trim(),
-      );
+      await auth.signIn(emailCtrl.text.trim(), passCtrl.text.trim());
     } else {
       await auth.signUp(
         emailCtrl.text.trim(),
@@ -47,18 +44,17 @@ class _AuthState extends State<Auth> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    if (auth.message != null) {
+    if (auth.message != null || !mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-
-        final msg = context.read<AuthProvider>().message;
+        final msg = auth.message;
         if (msg == null) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg.text),
-            backgroundColor:
-                msg.type == MessageType.error ? Colors.red : Colors.green,
+            backgroundColor: msg.type == MessageType.error
+                ? Colors.red
+                : Colors.green,
           ),
         );
 

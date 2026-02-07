@@ -1,17 +1,23 @@
+import 'package:blogapp_flutter/models/profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
   static final SupabaseClient _client = Supabase.instance.client;
 
   static User? get currentUser => _client.auth.currentUser;
-
   static Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
+
+  // ---------------- AUTH ----------------
 
   static Future<User?> signUp({
     required String email,
     required String password,
     required String username,
   }) async {
+    if (username.isEmpty) {
+      throw Exception('Username is required');
+    }
+
     final res = await _client.auth.signUp(
       email: email,
       password: password,
@@ -35,14 +41,33 @@ class AuthService {
     await _client.auth.signOut();
   }
 
-  static Future<Map<String, dynamic>?> getProfile(String userId) async {
-    return await _client.from('profiles').select().eq('id', userId).single();
+  // ---------------- PROFILE ----------------
+
+  static Future<Profile?> getProfile(String userId) async {
+    final response = await _client
+        .from('profiles')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (response == null) return null;
+
+    return Profile.fromJson(response);
   }
 
-  static Future<void> updateProfile(
+  static Future<Profile?> updateProfile(
     String userId,
     Map<String, dynamic> data,
   ) async {
-    await _client.from('profiles').update(data).eq('id', userId);
+    final response = await _client
+        .from('profiles')
+        .update(data)
+        .eq('id', userId)
+        .select()
+        .maybeSingle();
+
+    if (response == null) return null;
+
+    return Profile.fromJson(response);
   }
 }
