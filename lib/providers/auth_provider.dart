@@ -29,7 +29,6 @@ class AuthProvider extends ChangeNotifier {
 
       // early return if user stay the same
       if (user?.id == newUser?.id) return;
-
       user = newUser;
 
       if (user != null) {
@@ -48,6 +47,7 @@ class AuthProvider extends ChangeNotifier {
             break;
         }
       } else {
+        isLoading = false;
         profile = null;
       }
 
@@ -110,7 +110,7 @@ class AuthProvider extends ChangeNotifier {
         if (updatedProfile == null) throw Exception('Profile update failed');
         profile = updatedProfile;
 
-        // Delete previous avatar url 
+        // Delete previous avatar url
         if ((hasNewAvatar || removedAvatar) && oldAvatar != null) {
           await ImageService.deleteImage(
             DeleteImageProps(imageUrl: oldAvatar, type: ImageType.avatar),
@@ -118,6 +118,12 @@ class AuthProvider extends ChangeNotifier {
         }
       }),
       successMessage: 'Profile updated successfully',
+    );
+  }
+
+  Future<String?> uploadAvatar(UploadProps props) async {
+    return await _handleApiCall(
+      () => SafeCall.run(() => ImageService.uploadImage(props)),
     );
   }
 

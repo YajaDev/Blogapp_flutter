@@ -4,14 +4,14 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/notif_message.dart';
 
-class Auth extends StatefulWidget {
-  const Auth({super.key});
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
 
   @override
-  State<Auth> createState() => _AuthState();
+  State<AuthScreen> createState() => _AuthScreen();
 }
 
-class _AuthState extends State<Auth> {
+class _AuthScreen extends State<AuthScreen> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
   final usernameCtrl = TextEditingController();
@@ -29,14 +29,14 @@ class _AuthState extends State<Auth> {
   Future<void> submit() async {
     final auth = context.read<AuthProvider>();
 
+    final email = emailCtrl.text.trim();
+    final password = passCtrl.text.trim();
+    final username = usernameCtrl.text.trim();
+
     if (isLogin) {
-      await auth.signIn(emailCtrl.text.trim(), passCtrl.text.trim());
+      await auth.signIn(email, password);
     } else {
-      await auth.signUp(
-        emailCtrl.text.trim(),
-        passCtrl.text.trim(),
-        usernameCtrl.text.trim(),
-      );
+      await auth.signUp(email, password, username);
     }
   }
 
@@ -44,7 +44,8 @@ class _AuthState extends State<Auth> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    if (auth.message != null || !mounted) {
+    // Show SnackBar on message
+    if (auth.message != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final msg = auth.message;
         if (msg == null) return;
@@ -72,21 +73,25 @@ class _AuthState extends State<Auth> {
               TextField(
                 controller: usernameCtrl,
                 decoration: const InputDecoration(labelText: 'Username'),
+                textInputAction: TextInputAction.next,
               ),
             TextField(
               controller: emailCtrl,
               decoration: const InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
             ),
             TextField(
               controller: passCtrl,
               obscureText: true,
               decoration: const InputDecoration(labelText: 'Password'),
+              textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: 16),
             auth.isLoading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
-                    onPressed: submit,
+                    onPressed: auth.isLoading ? null : submit,
                     child: Text(isLogin ? 'Login' : 'Sign Up'),
                   ),
             TextButton(
