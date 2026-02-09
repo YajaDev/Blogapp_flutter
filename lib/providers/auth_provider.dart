@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:blogapp_flutter/helper/api/handle_call.dart';
+import 'package:blogapp_flutter/helper/api/safe_call.dart';
 import 'package:blogapp_flutter/services/image_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,7 +9,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
 import '../models/notif_message.dart';
 import '../services/auth_service.dart';
-import '../helper/safe_api_call.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? user;
@@ -16,9 +17,16 @@ class AuthProvider extends ChangeNotifier {
   NotifMessage? message;
 
   late final StreamSubscription<AuthState> _sub;
+  late final ApiCallHandler _apiCallHandler;
 
   AuthProvider() {
     _init();
+
+    _apiCallHandler = ApiCallHandler(
+      startLoading: _startLoading,
+      stopLoading: _stopLoading,
+      setMessage: _setMessage,
+    );
   }
 
   // ---------------- INIT ----------------
@@ -64,7 +72,7 @@ class AuthProvider extends ChangeNotifier {
   // ---------------- AUTH ----------------
 
   Future<void> signIn(String email, String password) async {
-    await _handleApiCall<User?>(
+    await _apiCallHandler.call<User?>(
       () => SafeCall.run(
         () => AuthService.signIn(email: email, password: password),
       ),
@@ -73,7 +81,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> signUp(String email, String password, String username) async {
-    await _handleApiCall<User?>(
+    await _apiCallHandler.call<User?>(
       () => SafeCall.run(
         () => AuthService.signUp(
           email: email,
@@ -86,7 +94,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    await _handleApiCall<void>(
+    await _apiCallHandler.call<void>(
       () => SafeCall.run(() => AuthService.signOut()),
       successMessage: 'Signed out successfully',
     );
@@ -103,7 +111,7 @@ class AuthProvider extends ChangeNotifier {
     final removedAvatar =
         data.containsKey('avatar_url') && data['avatar_url'] == null;
 
-    await _handleApiCall<void>(
+    await _apiCallHandler.call<void>(
       () => SafeCall.run(() async {
         final updatedProfile = await AuthService.updateProfile(user!.id, data);
 
@@ -122,38 +130,12 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String?> uploadAvatar(UploadProps props) async {
-    return await _handleApiCall(
+    return await _apiCallHandler.call(
       () => SafeCall.run(() => ImageService.uploadImage(props)),
     );
   }
 
   // ---------------- HELPERS ----------------
-
-  Future<T?> _handleApiCall<T>(
-    Future<SafeResult<T>> Function() action, {
-    String? successMessage,
-  }) async {
-    _startLoading();
-
-    final result = await action();
-    T? data;
-
-    switch (result) {
-      case SafeSuccess(data: final d):
-        data = d;
-        if (successMessage != null) {
-          _setMessage(successMessage, MessageType.success);
-        }
-        break;
-
-      case SafeFailure(errorMessage: final err):
-        _setMessage(err, MessageType.error);
-        break;
-    }
-
-    _stopLoading();
-    return data;
-  }
 
   void _setMessage(String text, MessageType type) {
     message = NotifMessage(text, type);

@@ -1,10 +1,12 @@
-import 'package:blogapp_flutter/providers/auth_provider.dart';
+import 'router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'services/supabase_sevice.dart';
 
-import 'router.dart';
+
+import 'package:blogapp_flutter/providers/auth_provider.dart';
+import 'package:blogapp_flutter/providers/blog_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +19,10 @@ Future<void> main() async {
 
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => BlogProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -32,6 +37,12 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
+      theme: ThemeData.from(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Color(0xFF1B54E4), // <-- your primary color
+          
+        ),
+      ),
       routerConfig: appRouter(authProvider),
     );
   }
