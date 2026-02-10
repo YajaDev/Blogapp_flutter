@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:blogapp_flutter/models/notif_message.dart';
 import 'package:blogapp_flutter/services/auth_service.dart';
 import 'package:blogapp_flutter/helper/api/handle_call.dart';
 import 'package:blogapp_flutter/helper/api/safe_call.dart';
 import 'package:blogapp_flutter/models/blog.dart';
 import 'package:blogapp_flutter/services/blog_service.dart';
+import 'package:blogapp_flutter/services/image_service.dart';
 import 'package:flutter/material.dart';
 
 class BlogProvider extends ChangeNotifier {
@@ -82,20 +85,58 @@ class BlogProvider extends ChangeNotifier {
     );
   }
 
+  Future<Blog?> fetchBlogById(String id) async {
+    return await _apiHandler.call<Blog?>(
+      () => SafeCall.run(() => BlogService.fetchById(id)),
+    );
+  }
+
   // ---------------- CRUD ----------------
 
-  Future<void> addBlog(UpdateBlog blogDetail) async {
-    await _apiHandler.call(
-      () => SafeCall.run(() => BlogService.add(blogDetail)),
+  Future<bool> addBlog(UpdateBlog blogDetail, {File? file}) async {
+    final result = await _apiHandler.call(
+      () => SafeCall.run(() async {
+        String? imageUrl;
+
+        // Upload image
+        if (file != null) {
+          imageUrl = await ImageService.uploadImage(
+            UploadProps(
+              file: file,
+              userId: blogDetail.userId,
+              type: ImageType.blog,
+            ),
+          );
+        }
+
+        // Create blog with image URL
+        final blogWithImage = UpdateBlog(
+          userId: blogDetail.userId,
+          title: blogDetail.title,
+          subtitle: blogDetail.subtitle,
+          description: blogDetail.description,
+          imageUrl: imageUrl,
+        );
+
+        await BlogService.add(blogWithImage);
+
+        return true;
+      }),
       successMessage: 'Blog created successfully',
     );
 
-    await fetchInitialBlogs(); // refresh after adding
+    // Return bool for UI
+    if (result == true) {
+      await fetchInitialBlogs();
+      return true;
+    }
+
+    return false;
   }
 
   Future<void> editBlog(UpdateBlog blogDetail, String id) async {
     await _apiHandler.call(
-      () => SafeCall.run(() => BlogService.edit(blogDetail)),
+      () => SafeCall.run(() => BlogService.edit(blogDetail, id)),
       successMessage: 'Blog updated successfully',
     );
 
@@ -112,13 +153,7 @@ class BlogProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Blog?> fetchBlogById(String id) async {
-    return await _apiHandler.call<Blog?>(
-      () => SafeCall.run(() => BlogService.fetchById(id)),
-    );
-  }
-
-  // ---------------- INTERNAL HELPERS ----------------
+  // ---------------- HELPERS ----------------
 
   void _startLoading() {
     isLoading = true;

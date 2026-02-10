@@ -8,8 +8,8 @@ class BlogService {
     await _client.from('blogs').insert(blogDetail.toJson());
   }
 
-  static Future<void> edit(UpdateBlog blogDetail) async {
-    await _client.from('blogs').update(blogDetail.toJson()).eq('id', 1);
+  static Future<void> edit(UpdateBlog blogDetail, String id) async {
+    await _client.from('blogs').update(blogDetail.toJson()).eq('id', id);
   }
 
   static Future<void> delete(String id) async {
@@ -40,6 +40,4 @@ class BlogService {
 
     return Blog.fromJson(data);
   }
-
-  
 }
