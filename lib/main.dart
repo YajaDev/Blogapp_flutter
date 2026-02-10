@@ -4,7 +4,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'services/supabase_sevice.dart';
 
-
 import 'package:blogapp_flutter/providers/auth_provider.dart';
 import 'package:blogapp_flutter/providers/blog_provider.dart';
 
@@ -40,7 +39,6 @@ class MyApp extends StatelessWidget {
       theme: ThemeData.from(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Color(0xFF1B54E4), // <-- your primary color
-          
         ),
       ),
       routerConfig: appRouter(authProvider),

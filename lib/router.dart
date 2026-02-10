@@ -1,12 +1,13 @@
 import 'package:blogapp_flutter/providers/auth_provider.dart';
-import 'package:blogapp_flutter/screens/blog_list.dart';
+import 'package:blogapp_flutter/screens/blog_details_screen.dart';
+import 'package:blogapp_flutter/screens/blog_list_screen.dart';
 import 'package:blogapp_flutter/screens/profile_screen.dart';
 import 'package:blogapp_flutter/screens/root_shell.dart';
 import 'package:go_router/go_router.dart';
 
 import 'screens/notfound.dart';
 import 'screens/auth_screen.dart';
-import 'screens/home.dart';
+import 'screens/home_screen.dart';
 
 GoRouter appRouter(AuthProvider authProvider) {
   return GoRouter(
@@ -30,7 +31,7 @@ GoRouter appRouter(AuthProvider authProvider) {
       ShellRoute(
         builder: (context, state, child) => RootShell(child: child),
         routes: [
-          GoRoute(path: '/', builder: (context, state) => const Home()),
+          GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
@@ -38,6 +39,13 @@ GoRouter appRouter(AuthProvider authProvider) {
           GoRoute(
             path: '/blogs',
             builder: (context, state) => const BlogList(),
+          ),
+          GoRoute(
+            path: '/blog/:id',
+            builder: (context, state) {
+              final blogId = state.pathParameters['id']!;
+              return BlogDetailPage(blogId: blogId);
+            },
           ),
         ],
       ),

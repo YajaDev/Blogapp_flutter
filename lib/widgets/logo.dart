@@ -7,13 +7,13 @@ class Logo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text.rich(
       TextSpan(
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 28.0),
-        children: const [
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 30),
+        children: [
           TextSpan(
             text: 'Q',
-            style: TextStyle(color: Color.fromARGB(255, 27, 84, 228)),
+            style: TextStyle(color: Theme.of(context).colorScheme.primary),
           ),
-          TextSpan(text: 'uickBlog'),
+          const TextSpan(text: 'uickBlog'),
         ],
       ),
     );
