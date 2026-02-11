@@ -62,14 +62,16 @@ class Blog {
 }
 
 class UpdateBlog {
-  final String userId;
+  final String? id;
+  final String? userId;
   final String? title;
   final String? subtitle;
   final String? description;
   final String? imageUrl;
 
   UpdateBlog({
-    required this.userId,
+    this.userId,
+    this.id,
     this.title,
     this.subtitle,
     this.description,

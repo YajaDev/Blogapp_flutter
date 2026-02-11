@@ -29,6 +29,16 @@ class BlogService {
     return data.map((blog) => Blog.fromJson(blog)).toList();
   }
 
+  static Future<List<Blog>> fetchBlogsByUser(String userId) async {
+    final data = await _client
+        .from('blogs')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+
+    return data.map((json) => Blog.fromJson(json)).toList();  
+  }
+
   static Future<Blog?> fetchById(String id) async {
     final data = await _client
         .from('blogs')

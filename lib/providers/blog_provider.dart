@@ -9,6 +9,8 @@ import 'package:blogapp_flutter/services/blog_service.dart';
 import 'package:blogapp_flutter/services/image_service.dart';
 import 'package:flutter/material.dart';
 
+enum AddOrEditType { add, edit }
+
 class BlogProvider extends ChangeNotifier {
   final List<Blog> blogs = [];
 
@@ -91,56 +93,30 @@ class BlogProvider extends ChangeNotifier {
     );
   }
 
+  Future<List<Blog>?> fetchBlogsByUserId(String userId) async {
+    return await _apiHandler.call(
+      () => SafeCall.run(() => BlogService.fetchBlogsByUser(userId)),
+    );
+  }
+
   // ---------------- CRUD ----------------
 
   Future<bool> addBlog(UpdateBlog blogDetail, {File? file}) async {
-    final result = await _apiHandler.call(
-      () => SafeCall.run(() async {
-        String? imageUrl;
-
-        // Upload image
-        if (file != null) {
-          imageUrl = await ImageService.uploadImage(
-            UploadProps(
-              file: file,
-              userId: blogDetail.userId,
-              type: ImageType.blog,
-            ),
-          );
-        }
-
-        // Create blog with image URL
-        final blogWithImage = UpdateBlog(
-          userId: blogDetail.userId,
-          title: blogDetail.title,
-          subtitle: blogDetail.subtitle,
-          description: blogDetail.description,
-          imageUrl: imageUrl,
-        );
-
-        await BlogService.add(blogWithImage);
-
-        return true;
-      }),
+    return await addOrEdit(
+      AddOrEditType.add,
+      blogDetail,
+      file: file,
       successMessage: 'Blog created successfully',
     );
-
-    // Return bool for UI
-    if (result == true) {
-      await fetchInitialBlogs();
-      return true;
-    }
-
-    return false;
   }
 
-  Future<void> editBlog(UpdateBlog blogDetail, String id) async {
-    await _apiHandler.call(
-      () => SafeCall.run(() => BlogService.edit(blogDetail, id)),
+  Future<bool> editBlog(UpdateBlog blogDetail, {File? file}) async {
+    return await addOrEdit(
+      AddOrEditType.edit,
+      blogDetail,
+      file: file,
       successMessage: 'Blog updated successfully',
     );
-
-    await fetchInitialBlogs(); // refresh after editing
   }
 
   Future<void> deleteBlog(String id) async {
@@ -154,6 +130,63 @@ class BlogProvider extends ChangeNotifier {
   }
 
   // ---------------- HELPERS ----------------
+
+  Future<bool> addOrEdit(
+    AddOrEditType type,
+    UpdateBlog blogDetail, {
+    String? successMessage,
+    File? file,
+  }) async {
+    final result = await _apiHandler.call(
+      () => SafeCall.run(() async {
+        String? imageUrl = blogDetail.imageUrl;
+
+        // Upload image
+        if (file != null) {
+          imageUrl = await ImageService.uploadImage(
+            UploadProps(
+              file: file,
+              userId: blogDetail.userId!,
+              type: ImageType.blog,
+            ),
+          );
+        }
+
+        final blog = UpdateBlog(
+          id: blogDetail.id,
+          userId: blogDetail.userId,
+          title: blogDetail.title,
+          subtitle: blogDetail.subtitle,
+          description: blogDetail.description,
+          imageUrl: imageUrl,
+        );
+
+        switch (type) {
+          case AddOrEditType.add:
+            await BlogService.add(blog);
+            break;
+
+          case AddOrEditType.edit:
+            if (blog.id == null) {
+              throw Exception('Blog ID is required for editing');
+            } 
+            await BlogService.edit(blog, blog.id!);
+            break;
+        }
+
+        return true;
+      }),
+      successMessage: successMessage,
+    );
+
+    // Return bool for UI
+    if (result == true) {
+      await fetchInitialBlogs();
+      return true;
+    }
+
+    return false;
+  }
 
   void _startLoading() {
     isLoading = true;

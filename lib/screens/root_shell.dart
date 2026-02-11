@@ -11,7 +11,7 @@ class RootShell extends StatelessWidget {
   // Index for BottomNavigationBar
   int getSelectedIndex(BuildContext context) {
     final String currentLocation = GoRouterState.of(context).uri.toString();
-
+    debugPrint(currentLocation);
     if (currentLocation == '/') return 0;
     if (currentLocation.startsWith('/profile')) return 1;
     if (currentLocation.startsWith('/blogs')) return 2;
@@ -28,7 +28,8 @@ class RootShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get the current location from GoRouter
+    final bool notInBloglist =
+        GoRouterState.of(context).uri.toString() != '/blogs';
 
     return Scaffold(
       // Top AppBar with your logo
@@ -42,12 +43,14 @@ class RootShell extends StatelessWidget {
       // The main content
       body: child,
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          openCreateBlog(context);
-        },
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: notInBloglist
+          ? FloatingActionButton(
+              onPressed: () {
+                openCreateBlog(context);
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
 
       // Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(

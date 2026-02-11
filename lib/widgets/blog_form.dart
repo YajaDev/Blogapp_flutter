@@ -1,29 +1,40 @@
 import 'dart:io';
 
 import 'package:blogapp_flutter/models/blog.dart';
+import 'package:blogapp_flutter/models/notif_message.dart';
 import 'package:blogapp_flutter/providers/auth_provider.dart';
 import 'package:blogapp_flutter/providers/blog_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BlogForm extends StatefulWidget {
-  const BlogForm({super.key});
+  final Blog? blog;
+
+  const BlogForm({super.key, this.blog});
 
   @override
   State<BlogForm> createState() => _BlogFormState();
 }
 
 class _BlogFormState extends State<BlogForm> {
-  final titleCtrl = TextEditingController();
-  final subtitleCtrl = TextEditingController();
-  final descCtrl = TextEditingController();
+  late final TextEditingController titleCtrl;
+  late final TextEditingController subtitleCtrl;
+  late final TextEditingController descCtrl;
 
   File? image;
+  bool removeImage = false;
   bool isLoading = false;
 
-  final supabase = Supabase.instance.client;
+  bool get isEditMode => widget.blog != null;
+
+  @override
+  void initState() {
+    super.initState();
+    titleCtrl = TextEditingController(text: widget.blog?.title ?? '');
+    subtitleCtrl = TextEditingController(text: widget.blog?.subtitle ?? '');
+    descCtrl = TextEditingController(text: widget.blog?.description ?? '');
+  }
 
   @override
   void dispose() {
@@ -43,6 +54,14 @@ class _BlogFormState extends State<BlogForm> {
 
     setState(() {
       image = File(picked.path);
+      removeImage = false;
+    });
+  }
+
+  void removeCurrentImage() {
+    setState(() {
+      image = null;
+      removeImage = true;
     });
   }
 
@@ -59,7 +78,7 @@ class _BlogFormState extends State<BlogForm> {
     if (title.isEmpty || description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('title & description fields are required'),
+          content: Text('Title & description fields are required'),
           backgroundColor: Colors.red,
         ),
       );
@@ -68,36 +87,52 @@ class _BlogFormState extends State<BlogForm> {
 
     setState(() => isLoading = true);
 
-    final isSuccess = await blogProvider.addBlog(
-      UpdateBlog(
-        userId: user!.id,
-        title: title,
-        subtitle: subtitle,
-        description: description,
-      ),
-      file: image,
+    final blogDetail = UpdateBlog(
+      id: widget.blog?.id,
+      userId: user?.id,
+      title: title,
+      subtitle: subtitle,
+      description: description,
+      imageUrl: removeImage ? null : widget.blog?.imageUrl,
     );
+
+    bool isSuccess = false;
+
+    if (isEditMode) {
+      isSuccess = await blogProvider.editBlog(blogDetail, file: image);
+    } else {
+      isSuccess = await blogProvider.addBlog(blogDetail, file: image);
+    }
 
     if (!mounted) return;
 
-    if (isSuccess) Navigator.pop(context);
+    final message = blogProvider.message;
+    if (message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message.text),
+          backgroundColor: message.type == MessageType.success
+              ? Colors.green
+              : Colors.red,
+        ),
+      );
+    }
 
     setState(() => isLoading = false);
+
+    if (isSuccess) Navigator.pop(context);
   }
 
   // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
+    final currentImage = widget.blog?.imageUrl;
+
     return Scaffold(
       body: Container(
         alignment: Alignment.center,
-        padding: EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
+        padding: EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -116,11 +151,29 @@ class _BlogFormState extends State<BlogForm> {
                             image: FileImage(image!),
                             fit: BoxFit.cover,
                           )
+                        : (currentImage != null && !removeImage)
+                        ? DecorationImage(
+                            image: NetworkImage(currentImage),
+                            fit: BoxFit.cover,
+                          )
                         : null,
                   ),
-                  child: image == null
+                  child: image == null && (currentImage == null || removeImage)
                       ? const Center(child: Icon(Icons.add_a_photo, size: 40))
-                      : null,
+                      : Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            Positioned(
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.red,
+                                ),
+                                onPressed: removeCurrentImage,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
 
@@ -152,7 +205,7 @@ class _BlogFormState extends State<BlogForm> {
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                       onPressed: submit,
-                      child: const Text('Publish Blog'),
+                      child: Text(isEditMode ? 'Update Blog' : 'Publish Blog'),
                     ),
             ],
           ),
