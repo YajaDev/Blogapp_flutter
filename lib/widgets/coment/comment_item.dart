@@ -311,6 +311,8 @@ class _CommentItemState extends State<CommentItem> {
                         ),
                 ),
 
+              const Spacer(),
+
               Text(
                 Date.timeAgo(comment.createdAt),
                 style: TextStyle(

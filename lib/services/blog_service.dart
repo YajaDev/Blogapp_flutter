@@ -36,7 +36,7 @@ class BlogService {
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
-    return data.map((json) => Blog.fromJson(json)).toList();  
+    return data.map((json) => Blog.fromJson(json)).toList();
   }
 
   static Future<Blog?> fetchById(String id) async {

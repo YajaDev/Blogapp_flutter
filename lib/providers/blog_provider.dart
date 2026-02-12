@@ -105,16 +105,22 @@ class BlogProvider extends ChangeNotifier {
     return await addOrEdit(
       AddOrEditType.add,
       blogDetail,
+      deleteImage: false,
       file: file,
       successMessage: 'Blog created successfully',
     );
   }
 
-  Future<bool> editBlog(UpdateBlog blogDetail, {File? file}) async {
+  Future<bool> editBlog(
+    UpdateBlog blogDetail, {
+    required bool deleteImage,
+    File? file,
+  }) async {
     return await addOrEdit(
       AddOrEditType.edit,
       blogDetail,
       file: file,
+      deleteImage: deleteImage,
       successMessage: 'Blog updated successfully',
     );
   }
@@ -126,7 +132,6 @@ class BlogProvider extends ChangeNotifier {
     );
 
     blogs.removeWhere((b) => b.id == id);
-    notifyListeners();
   }
 
   // ---------------- HELPERS ----------------
@@ -134,12 +139,13 @@ class BlogProvider extends ChangeNotifier {
   Future<bool> addOrEdit(
     AddOrEditType type,
     UpdateBlog blogDetail, {
+    required bool deleteImage,
     String? successMessage,
     File? file,
   }) async {
     final result = await _apiHandler.call(
       () => SafeCall.run(() async {
-        String? imageUrl = blogDetail.imageUrl;
+        String? imageUrl = deleteImage ? null : blogDetail.imageUrl;
 
         // Upload image
         if (file != null) {
@@ -169,9 +175,17 @@ class BlogProvider extends ChangeNotifier {
           case AddOrEditType.edit:
             if (blog.id == null) {
               throw Exception('Blog ID is required for editing');
-            } 
+            }
             await BlogService.edit(blog, blog.id!);
             break;
+        }
+
+        if (blog.imageUrl != null &&
+            type.toString() == "edit" &&
+            (deleteImage || file != null)) {
+          ImageService.deleteImage(
+            DeleteImageProps(imageUrl: blog.imageUrl!, type: ImageType.blog),
+          );
         }
 
         return true;

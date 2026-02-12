@@ -83,7 +83,7 @@ class UpdateBlog {
     if (title != null) data['title'] = title;
     if (subtitle != null) data['subtitle'] = subtitle;
     if (description != null) data['description'] = description;
-    if (imageUrl != null) data['img_url'] = imageUrl;
+    data['img_url'] = imageUrl;
     return data;
   }
 }

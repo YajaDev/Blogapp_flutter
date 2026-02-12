@@ -54,7 +54,7 @@ class _BlogFormState extends State<BlogForm> {
 
     setState(() {
       image = File(picked.path);
-      removeImage = false;
+      removeImage = true;
     });
   }
 
@@ -93,13 +93,17 @@ class _BlogFormState extends State<BlogForm> {
       title: title,
       subtitle: subtitle,
       description: description,
-      imageUrl: removeImage ? null : widget.blog?.imageUrl,
+      imageUrl: widget.blog?.imageUrl,
     );
 
     bool isSuccess = false;
 
     if (isEditMode) {
-      isSuccess = await blogProvider.editBlog(blogDetail, file: image);
+      isSuccess = await blogProvider.editBlog(
+        blogDetail,
+        deleteImage: removeImage,
+        file: image,
+      );
     } else {
       isSuccess = await blogProvider.addBlog(blogDetail, file: image);
     }
