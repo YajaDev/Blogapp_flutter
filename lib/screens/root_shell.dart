@@ -28,8 +28,9 @@ class RootShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool notInBloglist =
-        GoRouterState.of(context).uri.toString() != '/blogs';
+    final String location = GoRouterState.of(context).uri.toString();
+    final bool showFab =
+        !(location == '/blogs' || location.startsWith('/blog/'));
 
     return Scaffold(
       // Top AppBar with your logo
@@ -43,7 +44,7 @@ class RootShell extends StatelessWidget {
       // The main content
       body: child,
 
-      floatingActionButton: notInBloglist
+      floatingActionButton: showFab
           ? FloatingActionButton(
               onPressed: () {
                 openCreateBlog(context);

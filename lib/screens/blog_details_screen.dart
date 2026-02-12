@@ -1,11 +1,12 @@
+import 'package:blogapp_flutter/helper/date.dart';
 import 'package:blogapp_flutter/models/blog.dart';
 import 'package:blogapp_flutter/providers/blog_provider.dart';
+import 'package:blogapp_flutter/widgets/coment/comment_container.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class BlogDetailPage extends StatefulWidget {
   final String blogId;
-
   const BlogDetailPage({super.key, required this.blogId});
 
   @override
@@ -14,29 +15,33 @@ class BlogDetailPage extends StatefulWidget {
 
 class _BlogDetailPageState extends State<BlogDetailPage> {
   Blog? blog;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadBlog();
+    // ✅ Schedule after frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadBlog();
+    });
   }
 
   Future<void> _loadBlog() async {
-    if (!mounted) return;
     final blogDetail = await context.read<BlogProvider>().fetchBlogWithOwner(
       widget.blogId,
     );
 
+    if (!mounted) return;
+
     setState(() {
       blog = blogDetail;
+      isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<BlogProvider>();
-
-    if (provider.isLoading) {
+    if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -53,7 +58,7 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
             children: [
               // ---------------- PUBLISHED DATE ----------------
               Text(
-                'Published on ${_formatDate(blog!.createdAt)}',
+                'Published on ${Date.formatDate(blog!.createdAt)}',
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.primary,
@@ -131,28 +136,12 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
                   style: const TextStyle(fontSize: 16, height: 1.7),
                 ),
               ),
+
+              CommentContainer(blogId: blog!.id),
             ],
           ),
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
