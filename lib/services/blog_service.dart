@@ -4,16 +4,33 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class BlogService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  static Future<void> add(UpdateBlog blogDetail) async {
-    await _client.from('blogs').insert(blogDetail.toJson());
+  static Future<Blog> add(UpdateBlog blogDetail) async {
+    final result = await _client
+        .from('blogs')
+        .insert(blogDetail.toJson())
+        .select()
+        .single();
+    return Blog.fromJson(result);
   }
 
-  static Future<void> edit(UpdateBlog blogDetail, String id) async {
-    await _client.from('blogs').update(blogDetail.toJson()).eq('id', id);
+  static Future<Blog> edit(UpdateBlog blogDetail, String id) async {
+    final result = await _client
+        .from('blogs')
+        .update(blogDetail.toJson())
+        .eq('id', id)
+        .select()
+        .single();
+    return Blog.fromJson(result);
   }
 
-  static Future<void> delete(String id) async {
-    await _client.from('blogs').delete().eq('id', id);
+  static Future<Blog> delete(String id) async {
+    final result = await _client
+        .from('blogs')
+        .delete()
+        .eq('id', id)
+        .select()
+        .single();
+    return Blog.fromJson(result);
   }
 
   static Future<List<Blog>> fetchBlogs({int page = 0, int limit = 10}) async {

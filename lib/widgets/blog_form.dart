@@ -96,16 +96,15 @@ class _BlogFormState extends State<BlogForm> {
       imageUrl: widget.blog?.imageUrl,
     );
 
-    bool isSuccess = false;
-
+    Blog? blog;
     if (isEditMode) {
-      isSuccess = await blogProvider.editBlog(
+      blog = await blogProvider.editBlog(
         blogDetail,
         deleteImage: removeImage,
         file: image,
       );
     } else {
-      isSuccess = await blogProvider.addBlog(blogDetail, file: image);
+      blog = await blogProvider.addBlog(blogDetail, file: image);
     }
 
     if (!mounted) return;
@@ -124,7 +123,7 @@ class _BlogFormState extends State<BlogForm> {
 
     setState(() => isLoading = false);
 
-    if (isSuccess) Navigator.pop(context);
+    if (blog != null) Navigator.pop(context);
   }
 
   // ---------------- UI ----------------

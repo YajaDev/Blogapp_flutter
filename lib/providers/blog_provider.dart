@@ -13,6 +13,7 @@ enum AddOrEditType { add, edit }
 
 class BlogProvider extends ChangeNotifier {
   final List<Blog> blogs = [];
+  final List<Blog> userBlogs = [];
 
   bool isLoading = false;
   bool hasMore = true;
@@ -93,57 +94,43 @@ class BlogProvider extends ChangeNotifier {
     );
   }
 
-  Future<List<Blog>?> fetchBlogsByUserId(String userId) async {
-    return await _apiHandler.call(
+  Future<void> fetchBlogsByUserId(String userId) async {
+    final data = await _apiHandler.call(
       () => SafeCall.run(() => BlogService.fetchBlogsByUser(userId)),
     );
+
+    if (data != null) {
+      userBlogs
+        ..clear()
+        ..addAll(data);
+      notifyListeners();
+    }
   }
 
-  // ---------------- CRUD ----------------
+  // ---------------- DELETE ----------------
 
-  Future<bool> addBlog(UpdateBlog blogDetail, {File? file}) async {
-    return await addOrEdit(
-      AddOrEditType.add,
-      blogDetail,
-      deleteImage: false,
-      file: file,
-      successMessage: 'Blog created successfully',
-    );
-  }
-
-  Future<bool> editBlog(
-    UpdateBlog blogDetail, {
-    required bool deleteImage,
-    File? file,
-  }) async {
-    return await addOrEdit(
-      AddOrEditType.edit,
-      blogDetail,
-      file: file,
-      deleteImage: deleteImage,
-      successMessage: 'Blog updated successfully',
-    );
-  }
-
-  Future<void> deleteBlog(String id) async {
-    await _apiHandler.call(
+  Future<Blog?> deleteBlog(String id) async {
+    final result = await _apiHandler.call(
       () => SafeCall.run(() => BlogService.delete(id)),
       successMessage: 'Blog deleted successfully',
     );
 
     blogs.removeWhere((b) => b.id == id);
+    userBlogs.removeWhere((b) => b.id == id);
+
+    return result;
   }
 
-  // ---------------- HELPERS ----------------
+  // ---------------- ADD / EDIT ----------------
 
-  Future<bool> addOrEdit(
+  Future<Blog?> addOrEdit(
     AddOrEditType type,
     UpdateBlog blogDetail, {
     required bool deleteImage,
     String? successMessage,
     File? file,
   }) async {
-    final result = await _apiHandler.call(
+    return await _apiHandler.call(
       () => SafeCall.run(() async {
         String? imageUrl = deleteImage ? null : blogDetail.imageUrl;
 
@@ -167,16 +154,24 @@ class BlogProvider extends ChangeNotifier {
           imageUrl: imageUrl,
         );
 
+        Blog? newBlog;
+
         switch (type) {
           case AddOrEditType.add:
-            await BlogService.add(blog);
+            newBlog = await BlogService.add(blog);
+            blogs.insert(0, newBlog);
+            userBlogs.insert(0, newBlog);
             break;
 
           case AddOrEditType.edit:
             if (blog.id == null) {
               throw Exception('Blog ID is required for editing');
             }
-            await BlogService.edit(blog, blog.id!);
+            newBlog = await BlogService.edit(blog, blog.id!);
+            final i1 = blogs.indexWhere((b) => b.id == newBlog!.id);
+            if (i1 != -1) blogs[i1] = newBlog;
+            final i2 = userBlogs.indexWhere((b) => b.id == newBlog!.id);
+            if (i2 != -1) userBlogs[i2] = newBlog;
             break;
         }
 
@@ -188,19 +183,37 @@ class BlogProvider extends ChangeNotifier {
           );
         }
 
-        return true;
+        return newBlog;
       }),
       successMessage: successMessage,
     );
-
-    // Return bool for UI
-    if (result == true) {
-      await fetchInitialBlogs();
-      return true;
-    }
-
-    return false;
   }
+
+  Future<Blog?> addBlog(UpdateBlog blogDetail, {File? file}) async {
+    return await addOrEdit(
+      AddOrEditType.add,
+      blogDetail,
+      deleteImage: false,
+      file: file,
+      successMessage: 'Blog created successfully',
+    );
+  }
+
+  Future<Blog?> editBlog(
+    UpdateBlog blogDetail, {
+    required bool deleteImage,
+    File? file,
+  }) async {
+    return await addOrEdit(
+      AddOrEditType.edit,
+      blogDetail,
+      file: file,
+      deleteImage: deleteImage,
+      successMessage: 'Blog updated successfully',
+    );
+  }
+
+  // ---------------- HELPERS ----------------
 
   void _startLoading() {
     isLoading = true;

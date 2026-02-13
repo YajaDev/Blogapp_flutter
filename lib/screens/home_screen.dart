@@ -12,40 +12,66 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final provider = context.read<BlogProvider>();
+
+    // Trigger prefetch 200px before bottom
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !provider.isLoading &&
+        provider.hasMore) {
+      provider.fetchMoreBlogs();
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    await context.read<BlogProvider>().fetchInitialBlogs();
+  }
+
   @override
   Widget build(BuildContext context) {
     final blogProvider = context.watch<BlogProvider>();
 
-    return RefreshIndicator(
-      onRefresh: () => blogProvider.fetchInitialBlogs(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: blogProvider.blogs.length + 1,
-        itemBuilder: (context, index) {
-          if (index == blogProvider.blogs.length) {
-            if (blogProvider.hasMore) {
-              blogProvider.fetchMoreBlogs();
-              return Center(
-                child: Container(
-                  margin: EdgeInsets.symmetric(vertical: 24),
-                  padding: const EdgeInsets.fromLTRB(15, 3, 15, 5),
-                  child: Text(
-                    'Fecthing more blogs...',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                  ),
-                ),
-              );
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(16),
+          itemCount: blogProvider.blogs.length + 1,
+          itemBuilder: (context, index) {
+            // Bottom loader
+            if (index == blogProvider.blogs.length) {
+              if (blogProvider.hasMore) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return const SizedBox.shrink();
             }
-            return const SizedBox.shrink();
-          }
 
-          final blog = blogProvider.blogs[index];
-          return _BlogCard(blog: blog);
-        },
+            final blog = blogProvider.blogs[index];
+            return _BlogCard(blog: blog);
+          },
+        ),
       ),
     );
   }

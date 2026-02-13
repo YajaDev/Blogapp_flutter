@@ -1,4 +1,3 @@
-import 'package:blogapp_flutter/models/blog.dart';
 import 'package:blogapp_flutter/providers/auth_provider.dart';
 import 'package:blogapp_flutter/providers/blog_provider.dart';
 import 'package:blogapp_flutter/widgets/blog_list/card.dart';
@@ -13,49 +12,27 @@ class BlogList extends StatefulWidget {
 }
 
 class _BlogListState extends State<BlogList> {
-  List<Blog> _userBlogs = []; // Changed from List<Blog?> to List<Blog>
-  bool _isLoading = true; // Added underscore for consistency
-
   @override
   void initState() {
     super.initState();
 
     // Load user blogs after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadUserBlogs();
-    });
-  }
-
-  Future<void> _loadUserBlogs() async {
-    setState(() => _isLoading = true);
-
-    final authProvider = context.read<AuthProvider>();
-    final blogProvider = context.read<BlogProvider>();
-
-    // Check if user is authenticated
-    if (authProvider.user == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    // Fetch blogs for the current user
-    final blogs = await blogProvider.fetchBlogsByUserId(authProvider.user!.id);
-
-    if (!mounted) return;
-
-    setState(() {
-      _userBlogs = blogs ?? [];
-      _isLoading = false;
+      final auth = context.read<AuthProvider>();
+      context.read<BlogProvider>().fetchBlogsByUserId(auth.user!.id);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    final provider = context.watch<BlogProvider>();
+    final blogs = provider.userBlogs;
+
+    if (provider.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_userBlogs.isEmpty) {
+    if (blogs.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -78,14 +55,15 @@ class _BlogListState extends State<BlogList> {
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: _userBlogs.length,
+      itemCount: blogs.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final blog = _userBlogs[index];
+        final blog = blogs[index];
         return BlogCard(
           blog: blog,
           index: index + 1,
-          onRefresh: _loadUserBlogs, // Added callback
+          onDelete: (id) =>
+              context.read<BlogProvider>().deleteBlog(id),
         );
       },
     );
