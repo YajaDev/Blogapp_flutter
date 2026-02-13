@@ -26,8 +26,7 @@ class SafeCall {
         case PostgrestException(message: final msg):
           return SafeFailure(msg);
         case Exception():
-          List errorParts = e.toString().split(':');
-          String message = errorParts.last.toString().trim();
+          String message = e.toString().toString().trim();
           return SafeFailure(message);
         default:
           return SafeFailure('Unknown error');

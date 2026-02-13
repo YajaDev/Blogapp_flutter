@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:blogapp_flutter/helper/date.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,7 +30,8 @@ class _CommentItemState extends State<CommentItem> {
 
   late TextEditingController _controller;
 
-  File? newImage;
+  XFile? newImage;
+  Uint8List? newImageBytes; // For web preview
   String? previewUrl;
   bool removeImage = false;
 
@@ -53,19 +55,51 @@ class _CommentItemState extends State<CommentItem> {
 
     if (picked == null) return;
 
+    // Read bytes for web preview
+    final bytes = await picked.readAsBytes();
+
+    if (!mounted) return;
+
     setState(() {
-      newImage = File(picked.path);
+      newImage = picked;
+      newImageBytes = bytes;
       previewUrl = picked.path;
-      removeImage = widget.comment.imageUrl != null ? true : false;
+      removeImage = false;
     });
   }
 
-  void _clearImaga() {
+  void _clearImage() {
     setState(() {
       newImage = null;
+      newImageBytes = null;
       previewUrl = null;
       removeImage = true;
     });
+  }
+
+  // ✅ Build image that works on both web and mobile
+  Widget _buildImage(String url) {
+    // Network image (existing)
+    if (url.startsWith('http')) {
+      return Image.network(url, height: 100, width: 200, fit: BoxFit.cover);
+    }
+
+    // Local image preview
+    if (kIsWeb && newImageBytes != null) {
+      return Image.memory(
+        newImageBytes!,
+        height: 100,
+        width: 200,
+        fit: BoxFit.cover,
+      );
+    }
+
+    // Mobile file
+    if (!kIsWeb) {
+      return Image.file(File(url), height: 100, width: 200, fit: BoxFit.cover);
+    }
+
+    return const SizedBox.shrink();
   }
 
   // ---------------- SAVE EDIT ----------------
@@ -73,9 +107,8 @@ class _CommentItemState extends State<CommentItem> {
   Future<void> _saveEdit() async {
     final newContent = _controller.text.trim();
 
-    setState(() {
-      loading = true;
-    });
+    if (!mounted) return;
+    setState(() => loading = true);
 
     final result = await CommentService.editComment(
       commentId: widget.comment.id,
@@ -89,23 +122,24 @@ class _CommentItemState extends State<CommentItem> {
 
     switch (result) {
       case SafeSuccess(data: final updatedComment):
+        setState(() {
+          editing = false;
+          newImage = null;
+          newImageBytes = null;
+          previewUrl = updatedComment.imageUrl;
+          loading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Comment updated'),
             backgroundColor: Colors.green,
           ),
         );
-
-        setState(() {
-          editing = false;
-          newImage = null;
-          loading = false;
-        });
-
         widget.updatedComment(updatedComment);
         break;
 
       case SafeFailure(errorMessage: final err):
+        setState(() => loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(err), backgroundColor: Colors.red),
         );
@@ -181,10 +215,9 @@ class _CommentItemState extends State<CommentItem> {
           Row(
             spacing: 10,
             children: [
-              // --------------------- Avatar section ---------------------
               comment.avatarUrl != null
                   ? CircleAvatar(
-                      backgroundImage: NetworkImage(widget.comment.avatarUrl!),
+                      backgroundImage: NetworkImage(comment.avatarUrl!),
                     )
                   : const CircleAvatar(child: Icon(Icons.person)),
 
@@ -198,8 +231,6 @@ class _CommentItemState extends State<CommentItem> {
                           comment.username ?? "Unknown User",
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
-
-                        // ---------------- CONTENT ----------------
                         subtitle: editing
                             ? TextField(
                                 controller: _controller,
@@ -209,35 +240,22 @@ class _CommentItemState extends State<CommentItem> {
                                   hintText: "Edit comment...",
                                 ),
                               )
-                            : Text(widget.comment.content),
+                            : Text(comment.content),
                       ),
                     ),
 
-                    // ---------------- IMAGE ----------------
+                    // Image preview
                     if (previewUrl != null)
                       Row(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: previewUrl!.startsWith('http')
-                                ? Image.network(
-                                    previewUrl!,
-                                    height: 100,
-                                    width: 200,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Image.file(
-                                    File(previewUrl!),
-                                    height: 100,
-                                    width: 200,
-                                    fit: BoxFit.cover,
-                                  ),
+                            child: _buildImage(previewUrl!),
                           ),
-
                           if (editing)
                             IconButton(
                               icon: const Icon(Icons.close),
-                              onPressed: _clearImaga,
+                              onPressed: _clearImage,
                             ),
                         ],
                       ),
@@ -247,69 +265,63 @@ class _CommentItemState extends State<CommentItem> {
             ],
           ),
 
-          // --------------------- Actions Buttons -----------------------
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (currentUser?.id == comment.userId)
-                Container(
-                  child: editing
-                      // edit Mode
-                      ? Row(
-                          children: [
-                            IconButton(
-                              onPressed: _pickImage,
-                              icon: const Icon(Icons.image_outlined),
+                editing
+                    ? Row(
+                        children: [
+                          IconButton(
+                            onPressed: loading ? null : _pickImage,
+                            icon: const Icon(Icons.image_outlined),
+                          ),
+                          TextButton(
+                            onPressed: loading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      editing = false;
+                                      newImage = null;
+                                      newImageBytes = null;
+                                      _controller.text = comment.content;
+                                      previewUrl = comment.imageUrl;
+                                      removeImage = false;
+                                    });
+                                  },
+                            child: const Text(
+                              "Cancel",
+                              style: TextStyle(color: Colors.black),
                             ),
-                            TextButton(
-                              onPressed: loading
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        editing = false;
-                                        newImage = null;
-                                        _controller.text = comment.content;
-                                        previewUrl = comment.imageUrl;
-                                      });
-                                    },
-                              child: Text(
-                                "Cancel",
-                                style: TextStyle(color: Colors.black),
+                          ),
+                          TextButton(
+                            onPressed: loading ? null : _saveEdit,
+                            child: const Text("Save"),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          TextButton(
+                            onPressed: loading
+                                ? null
+                                : () => setState(() => editing = true),
+                            child: Text(
+                              "Edit",
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.secondary,
                               ),
                             ),
-                            TextButton(
-                              onPressed: loading ? null : _saveEdit,
-                              child: const Text("Save"),
+                          ),
+                          TextButton(
+                            onPressed: loading ? null : _deleteComment,
+                            child: const Text(
+                              "Delete",
+                              style: TextStyle(color: Colors.red),
                             ),
-                          ],
-                        )
-                      // Viewing move
-                      : Row(
-                          children: [
-                            TextButton(
-                              onPressed: loading
-                                  ? null
-                                  : () => setState(() => editing = true),
-                              child: Text(
-                                "Edit",
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.secondary,
-                                ),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: loading ? null : _deleteComment,
-                              child: const Text(
-                                "Delete",
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
+                          ),
+                        ],
+                      ),
 
               const Spacer(),
 

@@ -1,9 +1,10 @@
+import 'dart:io';
+
 import 'package:blogapp_flutter/models/notif_message.dart';
 import 'package:blogapp_flutter/models/profile.dart';
-import 'package:blogapp_flutter/services/image_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:blogapp_flutter/providers/auth_provider.dart';
@@ -23,7 +24,8 @@ class _ProfileEditState extends State<ProfileEdit> {
   final usernameCtrl = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
-  File? selectedAvatar;
+  XFile? selectedAvatar;
+  Uint8List? imageBytes;
   String? currentAvatarUrl;
 
   bool removedAvatar = false;
@@ -42,12 +44,18 @@ class _ProfileEditState extends State<ProfileEdit> {
       imageQuality: 80,
     );
 
-    if (picked != null) {
-      setState(() {
-        selectedAvatar = File(picked.path);
-        removedAvatar = false;
-      });
-    }
+    if (picked == null) return;
+
+    // Read bytes for web preview
+    final bytes = await picked.readAsBytes();
+
+    if (!mounted) return;
+
+    setState(() {
+      selectedAvatar = picked;
+      imageBytes = bytes;
+      removedAvatar = false;
+    });
   }
 
   void removeAvatar() {
@@ -61,26 +69,16 @@ class _ProfileEditState extends State<ProfileEdit> {
   Future<void> saveProfile() async {
     final auth = context.read<AuthProvider>();
     final username = usernameCtrl.text.trim();
-    String? avatarUrl;
 
     if (username.isEmpty) return;
 
-    // Upload avatar if selected
-    if (selectedAvatar != null && auth.user != null) {
-      avatarUrl = await auth.uploadAvatar(
-        UploadProps(
-          file: selectedAvatar!,
-          type: ImageType.avatar,
-          userId: auth.user!.id,
-        ),
-      );
-    }
+    await auth.updateProfile(
+      username: username,
+      removeAvatar: removedAvatar,
+      newAvatarFile: selectedAvatar,
+    );
 
-    await auth.updateProfile({
-      'username': username,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
-      if (removedAvatar) 'avatar_url': null,
-    });
+    if (!mounted) return;
 
     // Exit edit mode ONLY on success
     if (auth.message?.type == MessageType.success) widget.onCancel();
@@ -89,7 +87,7 @@ class _ProfileEditState extends State<ProfileEdit> {
   @override
   Widget build(BuildContext context) {
     final profile = widget.profile;
-    final auth = context.read<AuthProvider>();
+    final auth = context.watch<AuthProvider>();
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -104,7 +102,9 @@ class _ProfileEditState extends State<ProfileEdit> {
                 CircleAvatar(
                   radius: 60,
                   backgroundImage: selectedAvatar != null
-                      ? FileImage(selectedAvatar!)
+                      ? (kIsWeb
+                            ? MemoryImage(imageBytes!)
+                            : FileImage(File(selectedAvatar!.path)))
                       : (currentAvatarUrl != null
                             ? NetworkImage(currentAvatarUrl!)
                             : null),
@@ -133,7 +133,7 @@ class _ProfileEditState extends State<ProfileEdit> {
               ],
             ),
 
-            if (profile.avatarUrl != null || selectedAvatar != null)
+            if (currentAvatarUrl != null || selectedAvatar != null)
               TextButton.icon(
                 onPressed: removeAvatar,
                 icon: const Icon(Icons.delete_forever),

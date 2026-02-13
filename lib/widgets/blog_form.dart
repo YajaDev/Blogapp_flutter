@@ -1,9 +1,9 @@
 import 'dart:io';
-
 import 'package:blogapp_flutter/models/blog.dart';
 import 'package:blogapp_flutter/models/notif_message.dart';
 import 'package:blogapp_flutter/providers/auth_provider.dart';
 import 'package:blogapp_flutter/providers/blog_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +22,8 @@ class _BlogFormState extends State<BlogForm> {
   late final TextEditingController subtitleCtrl;
   late final TextEditingController descCtrl;
 
-  File? image;
+  XFile? imageFile; // Use XFile instead of File
+  Uint8List? imageBytes; // For web preview
   bool removeImage = false;
   bool isLoading = false;
 
@@ -52,15 +53,21 @@ class _BlogFormState extends State<BlogForm> {
 
     if (picked == null) return;
 
+    final byte = await picked.readAsBytes();
+
+    if (!mounted) return;
+
     setState(() {
-      image = File(picked.path);
-      removeImage = true;
+      imageFile = picked;
+      imageBytes = byte;
+      removeImage = false;
     });
   }
 
   void removeCurrentImage() {
     setState(() {
-      image = null;
+      imageFile = null;
+      imageBytes = null;
       removeImage = true;
     });
   }
@@ -101,10 +108,10 @@ class _BlogFormState extends State<BlogForm> {
       blog = await blogProvider.editBlog(
         blogDetail,
         deleteImage: removeImage,
-        file: image,
+        file: imageFile,
       );
     } else {
-      blog = await blogProvider.addBlog(blogDetail, file: image);
+      blog = await blogProvider.addBlog(blogDetail, file: imageFile);
     }
 
     if (!mounted) return;
@@ -149,9 +156,12 @@ class _BlogFormState extends State<BlogForm> {
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(12),
-                    image: image != null
+                    image: imageFile != null
                         ? DecorationImage(
-                            image: FileImage(image!),
+                            image: kIsWeb
+                                ? MemoryImage(imageBytes!) // in web
+                                : FileImage(File(imageFile!.path)) // in mob
+                                      as ImageProvider,
                             fit: BoxFit.cover,
                           )
                         : (currentImage != null && !removeImage)
@@ -161,7 +171,8 @@ class _BlogFormState extends State<BlogForm> {
                           )
                         : null,
                   ),
-                  child: image == null && (currentImage == null || removeImage)
+                  child:
+                      imageFile == null && (currentImage == null || removeImage)
                       ? const Center(child: Icon(Icons.add_a_photo, size: 40))
                       : Stack(
                           alignment: Alignment.topRight,

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:blogapp_flutter/models/notif_message.dart';
 import 'package:blogapp_flutter/services/auth_service.dart';
 import 'package:blogapp_flutter/helper/api/handle_call.dart';
@@ -8,6 +6,7 @@ import 'package:blogapp_flutter/models/blog.dart';
 import 'package:blogapp_flutter/services/blog_service.dart';
 import 'package:blogapp_flutter/services/image_service.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 enum AddOrEditType { add, edit }
 
@@ -128,7 +127,7 @@ class BlogProvider extends ChangeNotifier {
     UpdateBlog blogDetail, {
     required bool deleteImage,
     String? successMessage,
-    File? file,
+    XFile? file,
   }) async {
     return await _apiHandler.call(
       () => SafeCall.run(() async {
@@ -175,11 +174,14 @@ class BlogProvider extends ChangeNotifier {
             break;
         }
 
-        if (blog.imageUrl != null &&
-            type.toString() == "edit" &&
+        if (blogDetail.imageUrl != null &&
+            type == AddOrEditType.edit &&
             (deleteImage || file != null)) {
-          ImageService.deleteImage(
-            DeleteImageProps(imageUrl: blog.imageUrl!, type: ImageType.blog),
+          await ImageService.deleteImage(
+            DeleteImageProps(
+              imageUrl: blogDetail.imageUrl!,
+              type: ImageType.blog,
+            ),
           );
         }
 
@@ -189,7 +191,7 @@ class BlogProvider extends ChangeNotifier {
     );
   }
 
-  Future<Blog?> addBlog(UpdateBlog blogDetail, {File? file}) async {
+  Future<Blog?> addBlog(UpdateBlog blogDetail, {XFile? file}) async {
     return await addOrEdit(
       AddOrEditType.add,
       blogDetail,
@@ -202,7 +204,7 @@ class BlogProvider extends ChangeNotifier {
   Future<Blog?> editBlog(
     UpdateBlog blogDetail, {
     required bool deleteImage,
-    File? file,
+    XFile? file,
   }) async {
     return await addOrEdit(
       AddOrEditType.edit,

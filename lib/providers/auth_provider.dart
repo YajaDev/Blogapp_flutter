@@ -4,6 +4,7 @@ import 'package:blogapp_flutter/helper/api/handle_call.dart';
 import 'package:blogapp_flutter/helper/api/safe_call.dart';
 import 'package:blogapp_flutter/services/image_service.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/profile.dart';
@@ -34,32 +35,39 @@ class AuthProvider extends ChangeNotifier {
   void _init() {
     _sub = AuthService.authChanges.listen((data) async {
       final newUser = data.session?.user;
-
-      // early return if user stay the same
       if (user?.id == newUser?.id) return;
+
       user = newUser;
 
-      if (user != null) {
-        final result = await SafeCall.run<Profile?>(
-          () => AuthService.getProfile(user!.id),
-        );
-
-        switch (result) {
-          case SafeSuccess(data: final profileData):
-            profile = profileData;
-            break;
-
-          case SafeFailure(errorMessage: final err):
-            profile = null;
-            message = NotifMessage(err, MessageType.error);
-            break;
-        }
-      } else {
-        isLoading = false;
+      if (user == null) {
         profile = null;
+        isLoading = false;
+        notifyListeners();
+        return;
       }
 
-      notifyListeners();
+      _startLoading();
+
+      final result = await SafeCall.run<Profile?>(
+        () => AuthService.getProfile(user!.id),
+      );
+
+      switch (result) {
+        case SafeSuccess(data: final profileData):
+          if (profileData == null) {
+            _setMessage("Profile not found", MessageType.error);
+          } else {
+            profile = profileData;
+          }
+          break;
+
+        case SafeFailure(errorMessage: final err):
+          profile = null;
+          _setMessage(err, MessageType.error);
+          break;
+      }
+
+      _stopLoading();
     });
   }
 
@@ -94,6 +102,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    profile = null;
     await _apiCallHandler.call<void>(
       () => SafeCall.run(() => AuthService.signOut()),
       successMessage: 'Signed out successfully',
@@ -102,36 +111,45 @@ class AuthProvider extends ChangeNotifier {
 
   // ---------------- PROFILE ----------------
 
-  Future<void> updateProfile(Map<String, dynamic> data) async {
-    final oldAvatar = profile?.avatarUrl;
-
-    final hasNewAvatar =
-        data.containsKey('avatar_url') && data['avatar_url'] != null;
-
-    final removedAvatar =
-        data.containsKey('avatar_url') && data['avatar_url'] == null;
-
-    await _apiCallHandler.call<void>(
+  Future<void> updateProfile({
+    required String username,
+    XFile? newAvatarFile,
+    bool removeAvatar = false,
+  }) async {
+    await _apiCallHandler.call(
       () => SafeCall.run(() async {
-        final updatedProfile = await AuthService.updateProfile(user!.id, data);
+        final oldAvatarUrl = profile?.avatarUrl;
+        String? avatarUrl = oldAvatarUrl;
 
-        if (updatedProfile == null) throw Exception('Profile update failed');
-        profile = updatedProfile;
-
-        // Delete previous avatar url
-        if ((hasNewAvatar || removedAvatar) && oldAvatar != null) {
-          await ImageService.deleteImage(
-            DeleteImageProps(imageUrl: oldAvatar, type: ImageType.avatar),
+        // Upload new avatar if provided
+        if (newAvatarFile != null) {
+          avatarUrl = await ImageService.uploadImage(
+            UploadProps(
+              file: newAvatarFile,
+              userId: user!.id,
+              type: ImageType.avatar,
+            ),
           );
         }
+
+        if (removeAvatar && oldAvatarUrl != null) {
+          await ImageService.deleteImage(
+            DeleteImageProps(imageUrl: oldAvatarUrl, type: ImageType.avatar),
+          );
+          avatarUrl = null;
+        }
+
+        // Update profile in database
+        final updatedProfile = await AuthService.updateProfile(user!.id, {
+          'username': username,
+          'avatar_url': avatarUrl,
+        });
+
+        if (updatedProfile == null) throw Exception('Profile update failed');
+
+        profile = updatedProfile;
       }),
       successMessage: 'Profile updated successfully',
-    );
-  }
-
-  Future<String?> uploadAvatar(UploadProps props) async {
-    return await _apiCallHandler.call(
-      () => SafeCall.run(() => ImageService.uploadImage(props)),
     );
   }
 

@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'package:blogapp_flutter/helper/api/safe_call.dart';
 import 'package:blogapp_flutter/models/comment.dart';
 import 'package:blogapp_flutter/services/image_service.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CommentService {
@@ -25,7 +25,7 @@ class CommentService {
   static Future<SafeResult<Comment>> addComment({
     required String blogId,
     required String content,
-    File? imageFile,
+    XFile? imageFile,
   }) {
     return SafeCall.run(() async {
       final user = _client.auth.currentUser;
@@ -61,7 +61,7 @@ class CommentService {
     required String commentId,
     required String content,
     String? existingImageUrl,
-    File? newImageFile,
+    XFile? newImageFile,
     bool removeImage = false,
   }) {
     return SafeCall.run(() async {

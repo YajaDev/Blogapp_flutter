@@ -1,9 +1,13 @@
 import 'dart:io';
 import 'package:blogapp_flutter/models/comment.dart';
+import 'package:blogapp_flutter/models/profile.dart';
+import 'package:blogapp_flutter/providers/auth_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:blogapp_flutter/services/comment_service.dart';
 import 'package:blogapp_flutter/helper/api/safe_call.dart';
+import 'package:provider/provider.dart';
 
 class CommentForm extends StatefulWidget {
   final String blogId;
@@ -23,21 +27,39 @@ class _CommentFormState extends State<CommentForm> {
   final TextEditingController _controller = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
-  File? selectedImage;
+  XFile? selectedImage;
+  Uint8List? imageBytes; // ✅ For web preview
   bool loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   // ---------------- IMAGE PICK ----------------
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
 
-    if (pickedFile != null) {
-      setState(() => selectedImage = File(pickedFile.path));
-    }
+    if (pickedFile == null) return;
+
+    // ✅ Read bytes for web preview
+    final bytes = await pickedFile.readAsBytes();
+
+    if (!mounted) return;
+
+    setState(() {
+      selectedImage = pickedFile;
+      imageBytes = bytes;
+    });
   }
 
   void _removeImage() {
-    setState(() => selectedImage = null);
+    setState(() {
+      selectedImage = null;
+      imageBytes = null;
+    });
   }
 
   // ---------------- ADD COMMENT ----------------
@@ -46,6 +68,7 @@ class _CommentFormState extends State<CommentForm> {
     final content = _controller.text.trim();
     if (content.isEmpty && selectedImage == null) return;
 
+    if (!mounted) return;
     setState(() => loading = true);
 
     final result = await CommentService.addComment(
@@ -55,15 +78,16 @@ class _CommentFormState extends State<CommentForm> {
     );
 
     if (!mounted) return;
-
     setState(() => loading = false);
 
     switch (result) {
       case SafeSuccess(data: final newComment):
         _controller.clear();
-        selectedImage = null;
+        setState(() {
+          selectedImage = null;
+          imageBytes = null;
+        });
         widget.addComment(newComment);
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Comment added'),
@@ -80,10 +104,53 @@ class _CommentFormState extends State<CommentForm> {
     }
   }
 
+  // ✅ Build image preview that works on both web and mobile
+  Widget _buildImagePreview() {
+    if (selectedImage == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: kIsWeb
+                ? Image.memory(
+                    imageBytes!,
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  )
+                : Image.file(
+                    File(selectedImage!.path),
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+          ),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: GestureDetector(
+              onTap: _removeImage,
+              child: const CircleAvatar(
+                radius: 14,
+                backgroundColor: Colors.black54,
+                child: Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
+    Profile? profile = context.read<AuthProvider>().profile;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -100,20 +167,17 @@ class _CommentFormState extends State<CommentForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ---------------- TOP ROW ----------------
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar
               CircleAvatar(
                 radius: 20,
-                backgroundColor: Colors.grey.shade300,
-                child: const Icon(Icons.person, size: 20),
+                backgroundImage: profile!.avatarUrl != null
+                    ? NetworkImage(profile.avatarUrl!)
+                    : null,
+                child: profile.avatarUrl == null ? Icon(Icons.person) : null,
               ),
-
               const SizedBox(width: 10),
-
-              // Text Input
               Expanded(
                 child: TextField(
                   controller: _controller,
@@ -127,73 +191,40 @@ class _CommentFormState extends State<CommentForm> {
             ],
           ),
 
-          // ---------------- IMAGE PREVIEW ----------------
-          if (selectedImage != null) ...[
-            const SizedBox(height: 12),
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    selectedImage!,
-                    height: 140,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: GestureDetector(
-                    onTap: _removeImage,
-                    child: const CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.black54,
-                      child: Icon(Icons.close, size: 16, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          // ✅ Image preview
+          _buildImagePreview(),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // ---------------- ACTION ROW ----------------
           Row(
             children: [
               IconButton(
                 icon: const Icon(Icons.image_outlined),
                 onPressed: loading ? null : _pickImage,
               ),
-
               const Spacer(),
-
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
                   ),
-                  onPressed: loading ? null : _addComment,
-                  icon: loading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.send, size: 18),
-                  label: const Text("Post"),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                onPressed: loading ? null : _addComment,
+                icon: loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send, size: 18),
+                label: const Text("Post"),
               ),
             ],
           ),
