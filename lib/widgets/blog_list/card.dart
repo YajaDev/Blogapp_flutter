@@ -16,6 +16,30 @@ class BlogCard extends StatelessWidget {
     required this.onDelete,
   });
 
+  // Confirm before delete
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Blog'),
+        content: Text('Are you sure you want to delete "${blog.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) onDelete(blog.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -80,6 +104,7 @@ class BlogCard extends StatelessWidget {
                     onPressed: () {
                       showModalBottomSheet(
                         context: context,
+                        useRootNavigator: true,
                         isScrollControlled: true,
                         builder: (_) => BlogForm(blog: blog),
                       );
@@ -88,7 +113,7 @@ class BlogCard extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => onDelete(blog.id),
+                    onPressed: () => _confirmDelete(context),
                     tooltip: 'Delete',
                   ),
                 ],

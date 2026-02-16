@@ -8,17 +8,15 @@ class RootShell extends StatelessWidget {
 
   const RootShell({super.key, required this.child});
 
-  // Index for BottomNavigationBar
-  int getSelectedIndex(BuildContext context) {
-    final String currentLocation = GoRouterState.of(context).uri.toString();
-    debugPrint(currentLocation);
-    if (currentLocation == '/') return 0;
-    if (currentLocation.startsWith('/profile')) return 1;
-    if (currentLocation.startsWith('/blogs')) return 2;
-    return 0; // default
+  int _selectedIndex(BuildContext context) {
+    final location = GoRouterState.of(context).uri.toString();
+    if (location == '/') return 0;
+    if (location.startsWith('/profile')) return 1;
+    if (location.startsWith('/blogs')) return 2;
+    return 0;
   }
 
-  void openCreateBlog(BuildContext context) {
+  void _openCreateBlog(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -26,14 +24,113 @@ class RootShell extends StatelessWidget {
     );
   }
 
+  void _onNavTap(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.go('/');
+        break;
+      case 1:
+        context.go('/profile');
+        break;
+      case 2:
+        context.go('/blogs');
+        break;
+    }
+  }
+
+  bool _showFab(String location) {
+    return !(location == '/blogs' || location.startsWith('/blog/'));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String location = GoRouterState.of(context).uri.toString();
-    final bool showFab =
-        !(location == '/blogs' || location.startsWith('/blog/'));
+    final location = GoRouterState.of(context).uri.toString();
+    final isWide = MediaQuery.of(context).size.width > 800; // Breakpoint
+    final selectedIndex = _selectedIndex(context);
 
+    // Wide layout - side navigation rail (tablet/web)
+    if (isWide) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Logo(),
+          centerTitle: true,
+          shape: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.primary,
+              width: 0.2,
+            ),
+          ),
+          toolbarHeight: 70,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+        ),
+
+        body: Row(
+          children: [
+            // Navigation Rail for wide screens
+            Padding(
+              padding: const EdgeInsets.only(top: 30),
+              child: NavigationRail(
+                selectedIndex: selectedIndex,
+                onDestinationSelected: (index) => _onNavTap(context, index),
+                labelType: NavigationRailLabelType.all,
+                trailingAtBottom: true,
+                destinations: [
+                  NavigationRailDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(
+                      Icons.home,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    label: Text('Home'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(
+                      Icons.person,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    label: Text('Profile'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.list_alt_outlined),
+                    selectedIcon: Icon(
+                      Icons.list_alt,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    label: Text('Blogs'),
+                  ),
+                ],
+
+                // Create blog button in rail
+                trailing: Container(
+                  margin: EdgeInsets.only(bottom: 30),
+                  child: FloatingActionButton(
+                    onPressed: () => _openCreateBlog(context),
+                    child: const Icon(Icons.add),
+                  ),
+                ),
+              ),
+            ),
+
+            const VerticalDivider(thickness: 1, width: 1),
+
+            // Main content with max width constraint
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: child,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Narrow layout - bottom navigation bar (mobile)
     return Scaffold(
-      // Top AppBar with your logo
       appBar: AppBar(
         centerTitle: true,
         title: const Logo(),
@@ -41,39 +138,34 @@ class RootShell extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
       ),
 
-      // The main content
       body: child,
 
-      floatingActionButton: showFab
+      floatingActionButton: _showFab(location)
           ? FloatingActionButton(
-              onPressed: () {
-                openCreateBlog(context);
-              },
+              onPressed: () => _openCreateBlog(context),
               child: const Icon(Icons.add),
             )
           : null,
 
-      // Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: getSelectedIndex(context),
-        onTap: (index) {
-          // Navigate to the right page when tapped
-          switch (index) {
-            case 0:
-              context.go('/');
-              break;
-            case 1:
-              context.go('/profile');
-              break;
-            case 2:
-              context.go('/blogs');
-              break;
-          }
-        },
+        currentIndex: selectedIndex,
+        onTap: (index) => _onNavTap(context, index),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Blogs'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.list_alt_outlined),
+            activeIcon: Icon(Icons.list_alt),
+            label: 'Blogs',
+          ),
         ],
       ),
     );

@@ -53,19 +53,21 @@ class _BlogListState extends State<BlogList> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: blogs.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final blog = blogs[index];
-        return BlogCard(
-          blog: blog,
-          index: index + 1,
-          onDelete: (id) =>
-              context.read<BlogProvider>().deleteBlog(id),
-        );
-      },
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: blogs.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final blog = blogs[index];
+          return BlogCard(
+            blog: blog,
+            index: index + 1,
+            onDelete: (id) => context.read<BlogProvider>().deleteBlog(id),
+          );
+        },
+      ),
     );
   }
 }

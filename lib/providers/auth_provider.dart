@@ -132,10 +132,13 @@ class AuthProvider extends ChangeNotifier {
           );
         }
 
-        if (removeAvatar && oldAvatarUrl != null) {
-          await ImageService.deleteImage(
-            DeleteImageProps(imageUrl: oldAvatarUrl, type: ImageType.avatar),
-          );
+        if (removeAvatar) {
+          if (oldAvatarUrl != null) {
+            await ImageService.deleteImage(
+              DeleteImageProps(imageUrl: oldAvatarUrl, type: ImageType.avatar),
+            );
+          }
+
           avatarUrl = null;
         }
 

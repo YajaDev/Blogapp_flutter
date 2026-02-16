@@ -51,94 +51,99 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // ---------------- PUBLISHED DATE ----------------
-              Text(
-                'Published on ${Date.formatDate(blog!.createdAt)}',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ---------------- TITLE ----------------
-              Text(
-                blog!.title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
-              ),
-
-              // ---------------- SUBTITLE ----------------
-              if (blog!.subtitle != null) ...[
-                const SizedBox(height: 12),
+        child: ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+            scrollbars: false, // Hide scrollbar
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // ---------------- PUBLISHED DATE ----------------
                 Text(
-                  blog!.subtitle!,
-                  textAlign: TextAlign.center,
+                  'Published on ${Date.formatDate(blog!.createdAt)}',
                   style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                    height: 1.4,
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-              // ---------------- AUTHOR CHIP ----------------
-              if (blog!.owner != null)
-                Container(
-                  padding: const EdgeInsets.fromLTRB(15, 3, 15, 5),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Theme.of(context).primaryColor),
+                // ---------------- TITLE ----------------
+                Text(
+                  blog!.title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
                   ),
-                  child: Text(
-                    blog!.owner!.username!,
+                ),
+
+                // ---------------- SUBTITLE ----------------
+                if (blog!.subtitle != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    blog!.subtitle!,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                      color: Colors.grey.shade600,
+                      height: 1.4,
                     ),
                   ),
-                ),
+                ],
 
-              const SizedBox(height: 28),
+                const SizedBox(height: 20),
 
-              // ---------------- IMAGE ----------------
-              if (blog!.imageUrl != null && blog!.imageUrl!.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Image.network(blog!.imageUrl!, fit: BoxFit.cover),
+                // ---------------- AUTHOR CHIP ----------------
+                if (blog!.owner != null)
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(15, 3, 15, 5),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Theme.of(context).primaryColor),
+                    ),
+                    child: Text(
+                      blog!.owner!.username!,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 28),
+
+                // ---------------- IMAGE ----------------
+                if (blog!.imageUrl != null && blog!.imageUrl!.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: Image.network(blog!.imageUrl!, fit: BoxFit.cover),
+                    ),
+                  ),
+
+                const SizedBox(height: 32),
+
+                // ---------------- CONTENT ----------------
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    blog!.description,
+                    style: const TextStyle(fontSize: 16, height: 1.7),
                   ),
                 ),
 
-              const SizedBox(height: 32),
-
-              // ---------------- CONTENT ----------------
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  blog!.description,
-                  style: const TextStyle(fontSize: 16, height: 1.7),
-                ),
-              ),
-
-              CommentContainer(blogId: blog!.id),
-            ],
+                CommentContainer(blogId: blog!.id),
+              ],
+            ),
           ),
         ),
       ),

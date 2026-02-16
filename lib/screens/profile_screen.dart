@@ -61,11 +61,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: isEditing
-            ? ProfileEdit(profile: profile, onCancel: () => toggleEdit(false))
-            : ProfileDisplay(profile: profile, onEdit: () => toggleEdit(true)),
+      body: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 800),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: isEditing
+              ? ProfileEdit(profile: profile, onCancel: () => toggleEdit(false))
+              : ProfileDisplay(
+                  profile: profile,
+                  onEdit: () => toggleEdit(true),
+                ),
+        ),
       ),
     );
   }

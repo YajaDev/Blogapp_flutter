@@ -70,6 +70,8 @@ class _CommentContainerState extends State<CommentContainer> {
 
     return Column(
       children: [
+        const SizedBox(height: 30),
+
         Text(
           "Comments (${comments.length})",
           style: const TextStyle(fontWeight: FontWeight.bold),

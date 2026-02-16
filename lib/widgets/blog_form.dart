@@ -140,6 +140,7 @@ class _BlogFormState extends State<BlogForm> {
     final currentImage = widget.blog?.imageUrl;
 
     return Scaffold(
+      appBar: kIsWeb ? AppBar() : null,
       body: Container(
         alignment: Alignment.center,
         padding: EdgeInsets.all(16),
