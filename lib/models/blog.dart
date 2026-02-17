@@ -6,7 +6,7 @@ class Blog {
   final String title;
   final String? subtitle;
   final String description;
-  final String? imageUrl;
+  final List<String> imagesUrl;
   final DateTime createdAt;
 
   final Profile? owner;
@@ -17,21 +17,25 @@ class Blog {
     required this.title,
     this.subtitle,
     required this.description,
-    this.imageUrl,
+    this.imagesUrl = const [],
     required this.createdAt,
     this.owner,
   });
 
-  factory Blog.fromJson(Map<String, dynamic> json, {Profile? owner}) {
+  factory Blog.fromJson(Map<String, dynamic> json) {
     return Blog(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
-      title: json['title'] as String,
-      subtitle: json['subtitle'] as String?,
-      description: json['description'] as String,
-      imageUrl: json['img_url'] as String?,
+      id: json['id'],
+      userId: json['user_id'],
+      title: json['title'],
+      subtitle: json['subtitle'],
+      description: json['description'],
+      imagesUrl: json['images_url'] != null
+          ? List<String>.from(json['images_url'])
+          : [],
       createdAt: DateTime.parse(json['created_at'] as String),
-      owner: owner,
+      owner: json['profiles'] != null
+          ? Profile.fromJson(json['profiles'])
+          : null,
     );
   }
 
@@ -42,7 +46,7 @@ class Blog {
       'title': title,
       'subtitle': subtitle,
       'description': description,
-      'img_url': imageUrl,
+      'images_url': imagesUrl,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -54,7 +58,7 @@ class Blog {
       title: title,
       subtitle: subtitle,
       description: description,
-      imageUrl: imageUrl,
+      imagesUrl: imagesUrl,
       createdAt: createdAt,
       owner: owner ?? this.owner,
     );
@@ -67,7 +71,7 @@ class UpdateBlog {
   final String? title;
   final String? subtitle;
   final String? description;
-  final String? imageUrl;
+  final List<String>? imagesUrl;
 
   UpdateBlog({
     this.userId,
@@ -75,7 +79,7 @@ class UpdateBlog {
     this.title,
     this.subtitle,
     this.description,
-    this.imageUrl,
+    this.imagesUrl,
   });
 
   Map<String, dynamic> toJson() {
@@ -83,7 +87,7 @@ class UpdateBlog {
     if (title != null) data['title'] = title;
     if (subtitle != null) data['subtitle'] = subtitle;
     if (description != null) data['description'] = description;
-    data['img_url'] = imageUrl;
+    data['images_url'] = imagesUrl;
     return data;
   }
 }

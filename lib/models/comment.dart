@@ -3,7 +3,7 @@ class Comment {
   final String blogId;
   final String userId;
   final String content;
-  final String? imageUrl;
+  final List<String>? imagesUrl;
   final DateTime createdAt;
 
   final String? username;
@@ -14,7 +14,7 @@ class Comment {
     required this.blogId,
     required this.userId,
     required this.content,
-    this.imageUrl,
+    this.imagesUrl = const [],
     required this.createdAt,
     this.username,
     this.avatarUrl,
@@ -27,7 +27,9 @@ class Comment {
       blogId: json['blog_id'],
       userId: json['user_id'],
       content: json['content'],
-      imageUrl: json['image_url'],
+      imagesUrl: json['images_url'] != null
+          ? List<String>.from(json['images_url'])
+          : [],
       createdAt: DateTime.parse(json['created_at']),
       username: profiles['username'],
       avatarUrl: profiles['avatar_url'],
@@ -40,7 +42,7 @@ class Comment {
       'user_id': userId,
       'blog_id': blogId,
       'content': content,
-      'image_url': imageUrl,
+      'images_url': imagesUrl,
       'created_at': createdAt.toIso8601String(),
     };
   }

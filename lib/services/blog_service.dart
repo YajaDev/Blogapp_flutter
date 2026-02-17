@@ -8,7 +8,7 @@ class BlogService {
     final result = await _client
         .from('blogs')
         .insert(blogDetail.toJson())
-        .select()
+        .select('*,profiles(*)')
         .single();
     return Blog.fromJson(result);
   }
@@ -18,7 +18,7 @@ class BlogService {
         .from('blogs')
         .update(blogDetail.toJson())
         .eq('id', id)
-        .select()
+        .select('*,profiles(*)')
         .single();
     return Blog.fromJson(result);
   }
@@ -39,7 +39,7 @@ class BlogService {
 
     final data = await _client
         .from('blogs')
-        .select()
+        .select('*,profiles(*)')
         .order('created_at', ascending: false)
         .range(from, to);
 

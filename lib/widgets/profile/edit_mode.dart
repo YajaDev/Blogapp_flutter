@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:blogapp_flutter/models/notif_message.dart';
 import 'package:blogapp_flutter/models/profile.dart';
+import 'package:blogapp_flutter/providers/blog_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -68,6 +69,7 @@ class _ProfileEditState extends State<ProfileEdit> {
 
   Future<void> saveProfile() async {
     final auth = context.read<AuthProvider>();
+    final blogProvider = context.read<BlogProvider>();
     final username = usernameCtrl.text.trim();
 
     if (username.isEmpty) return;
@@ -77,6 +79,8 @@ class _ProfileEditState extends State<ProfileEdit> {
       removeAvatar: removedAvatar,
       newAvatarFile: selectedAvatar,
     );
+
+    await blogProvider.fetchInitialBlogs();
 
     if (!mounted) return;
 

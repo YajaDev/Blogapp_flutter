@@ -12,13 +12,6 @@ class UploadProps {
   UploadProps({required this.file, required this.userId, required this.type});
 }
 
-class DeleteImageProps {
-  final String imageUrl;
-  final ImageType type;
-
-  DeleteImageProps({required this.imageUrl, required this.type});
-}
-
 class ImageService {
   static final SupabaseClient _supabase = Supabase.instance.client;
   static final Uuid _uuid = const Uuid();
@@ -79,7 +72,7 @@ class ImageService {
     // Always use bytes - works on both web and mobile
     final bytes = await props.file.readAsBytes();
 
-      await _supabase.storage
+    await _supabase.storage
         .from(typeName)
         .uploadBinary(
           fileName,
@@ -98,11 +91,33 @@ class ImageService {
         : publicUrl;
   }
 
-  static Future<void> deleteImage(DeleteImageProps props) async {
-    final pathParts = props.imageUrl.split('/');
-    final fileName = pathParts.sublist(pathParts.length - 2).join('/');
-    final typeName = _getImageTypeName(props.type);
+  static Future<List<String>> uploadImages(
+    List<XFile> files, {
+    required String userId,
+    required ImageType type,
+  }) async {
+    final urls = <String>[];
 
-    await _supabase.storage.from(typeName).remove([fileName]);
+    for (final file in files) {
+      final url = await uploadImage(
+        UploadProps(file: file, userId: userId, type: type),
+      );
+      urls.add(url);
+    }
+
+    return urls;
+  }
+
+  static Future<void> deleteImages(
+    List<String> imagesUrl, {
+    required ImageType type,
+  }) async {
+    for (int i = 0; i < imagesUrl.length; i++) {
+      final pathParts = imagesUrl[i].split('/');
+      final fileName = pathParts.sublist(pathParts.length - 2).join('/');
+      final typeName = _getImageTypeName(type);
+
+      await _supabase.storage.from(typeName).remove([fileName]);
+    }
   }
 }

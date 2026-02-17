@@ -134,9 +134,9 @@ class AuthProvider extends ChangeNotifier {
 
         if (removeAvatar) {
           if (oldAvatarUrl != null) {
-            await ImageService.deleteImage(
-              DeleteImageProps(imageUrl: oldAvatarUrl, type: ImageType.avatar),
-            );
+            await ImageService.deleteImages([
+              oldAvatarUrl,
+            ], type: ImageType.avatar);
           }
 
           avatarUrl = null;

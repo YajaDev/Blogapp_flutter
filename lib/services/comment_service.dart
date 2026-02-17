@@ -25,20 +25,18 @@ class CommentService {
   static Future<SafeResult<Comment>> addComment({
     required String blogId,
     required String content,
-    XFile? imageFile,
+    required List<XFile> imageFiles,
   }) {
     return SafeCall.run(() async {
       final user = _client.auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      String? imageUrl;
-      if (imageFile != null) {
-        imageUrl = await ImageService.uploadImage(
-          UploadProps(
-            file: imageFile,
-            userId: user.id,
-            type: ImageType.comments,
-          ),
+      List<String> imageUrl = [];
+      if (imageFiles.isNotEmpty) {
+        imageUrl = await ImageService.uploadImages(
+          imageFiles,
+          userId: user.id,
+          type: ImageType.comments,
         );
       }
 
@@ -47,7 +45,7 @@ class CommentService {
           .insert({
             'blog_id': blogId,
             'content': content,
-            'image_url': imageUrl,
+            'images_url': imageUrl,
           })
           .select('*,profiles(username, avatar_url)')
           .single();
@@ -60,39 +58,39 @@ class CommentService {
   static Future<SafeResult<Comment>> editComment({
     required String commentId,
     required String content,
-    String? existingImageUrl,
-    XFile? newImageFile,
-    bool removeImage = false,
+    List<String> existingImageUrls = const [],
+    List<String> imagesToDelete = const [],
+    required List<XFile> newImageFiles,
   }) {
     return SafeCall.run(() async {
-      String? imageUrl = existingImageUrl;
+      List<String> imagesUrl = existingImageUrls;
 
-      if (removeImage) imageUrl = null;
-
-      if (newImageFile != null) {
-        imageUrl = await ImageService.uploadImage(
-          UploadProps(
-            file: newImageFile,
-            userId: _client.auth.currentUser!.id,
-            type: ImageType.comments,
-          ),
+      if (newImageFiles.isNotEmpty) {
+        final newImagesUrl = await ImageService.uploadImages(
+          newImageFiles,
+          userId: _client.auth.currentUser!.id,
+          type: ImageType.comments,
         );
+
+        imagesUrl.addAll(newImagesUrl);
+      }
+
+      if (imagesToDelete.isNotEmpty) {
+        imagesUrl.removeWhere((url) => imagesToDelete.contains(url));
       }
 
       final editedComment = await _client
           .from('comments')
-          .update({'content': content, 'image_url': imageUrl})
+          .update({'content': content, 'images_url': imagesUrl})
           .eq('id', commentId)
           .select('*,profiles(username, avatar_url)')
           .single();
 
       // Delete old image if replaced or removed
-      if (existingImageUrl != null && (newImageFile != null || removeImage)) {
-        await ImageService.deleteImage(
-          DeleteImageProps(
-            imageUrl: existingImageUrl,
-            type: ImageType.comments,
-          ),
+      if (imagesToDelete.isNotEmpty) {
+        await ImageService.deleteImages(
+          imagesToDelete,
+          type: ImageType.comments,
         );
       }
 
@@ -103,12 +101,13 @@ class CommentService {
   // ---------------- DELETE ----------------
   static Future<SafeResult<bool>> deleteComment({
     required String commentId,
-    String? imageUrl,
+    List<String> imagesUrl = const [],
   }) {
     return SafeCall.run(() async {
-      if (imageUrl != null) {
-        await ImageService.deleteImage(
-          DeleteImageProps(imageUrl: imageUrl, type: ImageType.comments),
+      if (imagesUrl.isNotEmpty) {
+        await ImageService.deleteImages(
+          imagesUrl,
+          type: ImageType.comments
         );
       }
 

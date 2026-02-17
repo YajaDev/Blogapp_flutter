@@ -22,10 +22,10 @@ class _BlogFormState extends State<BlogForm> {
   late final TextEditingController subtitleCtrl;
   late final TextEditingController descCtrl;
 
-  XFile? imageFile; // Use XFile instead of File
-  Uint8List? imageBytes; // For web preview
-  bool removeImage = false;
-  bool isLoading = false;
+  List<XFile> _newImages = []; // List of new images
+  List<String> _existingImages = []; // List of old images
+  List<String> _imagesToDelete = []; // Track deletions
+  bool _isLoading = false;
 
   bool get isEditMode => widget.blog != null;
 
@@ -35,6 +35,9 @@ class _BlogFormState extends State<BlogForm> {
     titleCtrl = TextEditingController(text: widget.blog?.title ?? '');
     subtitleCtrl = TextEditingController(text: widget.blog?.subtitle ?? '');
     descCtrl = TextEditingController(text: widget.blog?.description ?? '');
+
+    // Load existing images
+    if (widget.blog != null) _existingImages = widget.blog!.imagesUrl;
   }
 
   @override
@@ -47,28 +50,27 @@ class _BlogFormState extends State<BlogForm> {
 
   // ---------------- IMAGE PICK ----------------
 
-  Future<void> pickImage() async {
+  Future<void> _pickImages() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await picker.pickMultiImage();
 
-    if (picked == null) return;
-
-    final byte = await picked.readAsBytes();
+    if (picked.isEmpty) return;
 
     if (!mounted) return;
-
-    setState(() {
-      imageFile = picked;
-      imageBytes = byte;
-      removeImage = false;
-    });
+    setState(() => _newImages.addAll(picked));
   }
 
-  void removeCurrentImage() {
+  // ---------------- REMOVE IMAGE ----------------
+
+  void _removeNewImage(int index) {
+    setState(() => _newImages.removeAt(index));
+  }
+
+  void _removeExistingImage(int index) {
+    final url = _existingImages[index];
     setState(() {
-      imageFile = null;
-      imageBytes = null;
-      removeImage = true;
+      _imagesToDelete.add(url);
+      _existingImages.removeAt(index);
     });
   }
 
@@ -92,7 +94,7 @@ class _BlogFormState extends State<BlogForm> {
       return;
     }
 
-    setState(() => isLoading = true);
+    setState(() => _isLoading = true);
 
     final blogDetail = UpdateBlog(
       id: widget.blog?.id,
@@ -100,18 +102,18 @@ class _BlogFormState extends State<BlogForm> {
       title: title,
       subtitle: subtitle,
       description: description,
-      imageUrl: widget.blog?.imageUrl,
+      imagesUrl: widget.blog?.imagesUrl,
     );
 
     Blog? blog;
     if (isEditMode) {
       blog = await blogProvider.editBlog(
         blogDetail,
-        deleteImage: removeImage,
-        file: imageFile,
+        imagesToDelete: _imagesToDelete,
+        files: _newImages,
       );
     } else {
-      blog = await blogProvider.addBlog(blogDetail, file: imageFile);
+      blog = await blogProvider.addBlog(blogDetail, files: _newImages);
     }
 
     if (!mounted) return;
@@ -128,17 +130,136 @@ class _BlogFormState extends State<BlogForm> {
       );
     }
 
-    setState(() => isLoading = false);
+    setState(() => _isLoading = false);
 
     if (blog != null) Navigator.pop(context);
   }
 
   // ---------------- UI ----------------
 
+  Widget _buildImageGrid() {
+    final totalImages = _existingImages.length + _newImages.length;
+
+    if (totalImages == 0) {
+      return GestureDetector(
+        onTap: _pickImages,
+        child: Container(
+          height: 160,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_photo_alternate,
+                size: 40,
+                color: Colors.grey.shade500,
+              ),
+              const SizedBox(height: 8),
+              Text('Add images', style: TextStyle(color: Colors.grey.shade500)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: totalImages,
+          itemBuilder: (context, index) {
+            // Existing images
+            if (index < _existingImages.length) {
+              final url = _existingImages[index];
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(url, fit: BoxFit.cover),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: () => _removeExistingImage(index),
+                      child: const CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.black54,
+                        child: Icon(Icons.close, size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            // New images
+            final newIndex = index - _existingImages.length;
+            final file = _newImages[newIndex];
+
+            return FutureBuilder<Uint8List>(
+              future: file.readAsBytes(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Container(
+                    color: Colors.grey.shade200,
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: kIsWeb
+                          ? Image.memory(snapshot.data!, fit: BoxFit.cover)
+                          : Image.file(File(file.path), fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () => _removeNewImage(newIndex),
+                        child: const CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.black54,
+                          child: Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: _pickImages,
+          icon: const Icon(Icons.add_photo_alternate),
+          label: const Text('Add more images'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final currentImage = widget.blog?.imageUrl;
-
     return Scaffold(
       appBar: kIsWeb ? AppBar() : null,
       body: Container(
@@ -150,47 +271,7 @@ class _BlogFormState extends State<BlogForm> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // IMAGE PICKER
-              GestureDetector(
-                onTap: pickImage,
-                child: Container(
-                  height: 160,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                    image: imageFile != null
-                        ? DecorationImage(
-                            image: kIsWeb
-                                ? MemoryImage(imageBytes!) // in web
-                                : FileImage(File(imageFile!.path)) // in mob
-                                      as ImageProvider,
-                            fit: BoxFit.cover,
-                          )
-                        : (currentImage != null && !removeImage)
-                        ? DecorationImage(
-                            image: NetworkImage(currentImage),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child:
-                      imageFile == null && (currentImage == null || removeImage)
-                      ? const Center(child: Icon(Icons.add_a_photo, size: 40))
-                      : Stack(
-                          alignment: Alignment.topRight,
-                          children: [
-                            Positioned(
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.red,
-                                ),
-                                onPressed: removeCurrentImage,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
+              _buildImageGrid(),
 
               const SizedBox(height: 16),
 
@@ -216,7 +297,7 @@ class _BlogFormState extends State<BlogForm> {
 
               const SizedBox(height: 20),
 
-              isLoading
+              _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                       onPressed: submit,

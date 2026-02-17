@@ -64,7 +64,7 @@ class _BlogListState extends State<BlogList> {
           return BlogCard(
             blog: blog,
             index: index + 1,
-            onDelete: (id) => context.read<BlogProvider>().deleteBlog(id),
+            onDelete: (blog) => context.read<BlogProvider>().deleteBlog(blog),
           );
         },
       ),

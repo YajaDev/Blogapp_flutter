@@ -17,10 +17,13 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
   Blog? blog;
   bool isLoading = true;
 
+  int? _currentPage;
+  PageController? _pageController;
+
   @override
   void initState() {
     super.initState();
-    // ✅ Schedule after frame is built
+    // Schedule after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadBlog();
     });
@@ -33,10 +36,81 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
 
     if (!mounted) return;
 
+    _pageController = PageController();
+    _currentPage = 0;
+
     setState(() {
       blog = blogDetail;
       isLoading = false;
     });
+  }
+
+  // ---------------- UI ----------------
+
+  Widget _buildImageCarousel(List<String> images) {
+    if (images.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 350,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: images.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    images[index],
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // -------- CLICKABLE PAGINATION DOTS --------
+        if (images.length > 1)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              images.length,
+              (index) => GestureDetector(
+                onTap: () {
+                  _pageController?.animateToPage(
+                    index,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentPage == index ? 14 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: _currentPage == index
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey.shade400,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -95,9 +169,9 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
                       height: 1.4,
                     ),
                   ),
-                ],
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                ],
 
                 // ---------------- AUTHOR CHIP ----------------
                 if (blog!.owner != null)
@@ -121,15 +195,7 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
                 const SizedBox(height: 28),
 
                 // ---------------- IMAGE ----------------
-                if (blog!.imageUrl != null && blog!.imageUrl!.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: Image.network(blog!.imageUrl!, fit: BoxFit.cover),
-                    ),
-                  ),
-
+                _buildImageCarousel(blog!.imagesUrl),
                 const SizedBox(height: 32),
 
                 // ---------------- CONTENT ----------------

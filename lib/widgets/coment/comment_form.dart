@@ -27,8 +27,8 @@ class _CommentFormState extends State<CommentForm> {
   final TextEditingController _controller = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
-  XFile? selectedImage;
-  Uint8List? imageBytes; // ✅ For web preview
+  List<XFile> selectedImage = [];
+  List<Uint8List> imageBytes = []; // For web preview
   bool loading = false;
 
   @override
@@ -40,25 +40,22 @@ class _CommentFormState extends State<CommentForm> {
   // ---------------- IMAGE PICK ----------------
 
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final pickedFiles = await _picker.pickMultiImage();
 
-    if (pickedFile == null) return;
+    if (pickedFiles.isEmpty) return;
 
-    // ✅ Read bytes for web preview
-    final bytes = await pickedFile.readAsBytes();
+    // Read bytes for web preview
+    List<Uint8List> bytes = [];
+    for (final image in pickedFiles) {
+      final byte = await image.readAsBytes();
+      bytes.add(byte);
+    }
 
     if (!mounted) return;
 
     setState(() {
-      selectedImage = pickedFile;
+      selectedImage = pickedFiles;
       imageBytes = bytes;
-    });
-  }
-
-  void _removeImage() {
-    setState(() {
-      selectedImage = null;
-      imageBytes = null;
     });
   }
 
@@ -66,7 +63,7 @@ class _CommentFormState extends State<CommentForm> {
 
   Future<void> _addComment() async {
     final content = _controller.text.trim();
-    if (content.isEmpty && selectedImage == null) return;
+    if (content.isEmpty && selectedImage.isEmpty) return;
 
     if (!mounted) return;
     setState(() => loading = true);
@@ -74,7 +71,7 @@ class _CommentFormState extends State<CommentForm> {
     final result = await CommentService.addComment(
       blogId: widget.blogId,
       content: content,
-      imageFile: selectedImage,
+      imageFiles: selectedImage,
     );
 
     if (!mounted) return;
@@ -84,8 +81,8 @@ class _CommentFormState extends State<CommentForm> {
       case SafeSuccess(data: final newComment):
         _controller.clear();
         setState(() {
-          selectedImage = null;
-          imageBytes = null;
+          selectedImage = [];
+          imageBytes = [];
         });
         widget.addComment(newComment);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -104,48 +101,64 @@ class _CommentFormState extends State<CommentForm> {
     }
   }
 
-  // ✅ Build image preview that works on both web and mobile
+  // ---------------- UI ----------------
+
   Widget _buildImagePreview() {
-    if (selectedImage == null) return const SizedBox.shrink();
+    if (selectedImage.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: kIsWeb
-                ? Image.memory(
-                    imageBytes!,
-                    height: 140,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  )
-                : Image.file(
-                    File(selectedImage!.path),
-                    height: 140,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+      child: SizedBox(
+        height: 120,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: selectedImage.length,
+          itemBuilder: (context, index) {
+            return Stack(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: kIsWeb
+                        ? Image.memory(
+                            imageBytes[index],
+                            height: 120,
+                            width: 120,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.file(
+                            File(selectedImage[index].path),
+                            height: 120,
+                            width: 120,
+                            fit: BoxFit.cover,
+                          ),
                   ),
-          ),
-          Positioned(
-            top: 6,
-            right: 6,
-            child: GestureDetector(
-              onTap: _removeImage,
-              child: const CircleAvatar(
-                radius: 14,
-                backgroundColor: Colors.black54,
-                child: Icon(Icons.close, size: 16, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
+                ),
+                Positioned(
+                  top: 4,
+                  right: 12,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedImage.removeAt(index);
+                        imageBytes.removeAt(index);
+                      });
+                    },
+                    child: const CircleAvatar(
+                      radius: 12,
+                      backgroundColor: Colors.black54,
+                      child: Icon(Icons.close, size: 14, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
-
-  // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +204,7 @@ class _CommentFormState extends State<CommentForm> {
             ],
           ),
 
-          // ✅ Image preview
+          // Image preview
           _buildImagePreview(),
 
           const SizedBox(height: 8),

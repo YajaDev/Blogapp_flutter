@@ -81,7 +81,6 @@ class BlogProvider extends ChangeNotifier {
 
         // Fetch blog Owner
         final owner = await AuthService.getProfile(blog.userId);
-
         return blog.copyWith(owner: owner);
       }),
     );
@@ -108,14 +107,20 @@ class BlogProvider extends ChangeNotifier {
 
   // ---------------- DELETE ----------------
 
-  Future<Blog?> deleteBlog(String id) async {
+  Future<Blog?> deleteBlog(Blog blog) async {
     final result = await _apiHandler.call(
-      () => SafeCall.run(() => BlogService.delete(id)),
+      () => SafeCall.run(() async {
+        if (blog.imagesUrl.isNotEmpty) {
+          await ImageService.deleteImages(blog.imagesUrl, type: ImageType.blog);
+        }
+
+        return BlogService.delete(blog.id);
+      }),
       successMessage: 'Blog deleted successfully',
     );
 
-    blogs.removeWhere((b) => b.id == id);
-    userBlogs.removeWhere((b) => b.id == id);
+    blogs.removeWhere((b) => b.id == blog.id);
+    userBlogs.removeWhere((b) => b.id == blog.id);
 
     return result;
   }
@@ -125,24 +130,26 @@ class BlogProvider extends ChangeNotifier {
   Future<Blog?> addOrEdit(
     AddOrEditType type,
     UpdateBlog blogDetail, {
-    required bool deleteImage,
+    required List<String> imagesToDelete,
     String? successMessage,
-    XFile? file,
+    List<XFile>? files,
   }) async {
     return await _apiHandler.call(
       () => SafeCall.run(() async {
-        String? imageUrl = deleteImage ? null : blogDetail.imageUrl;
+        List<String>? imagesUrl = blogDetail.imagesUrl ?? [];
 
         // Upload image
-        if (file != null) {
-          imageUrl = await ImageService.uploadImage(
-            UploadProps(
-              file: file,
-              userId: blogDetail.userId!,
-              type: ImageType.blog,
-            ),
+        if (files != null && files.isNotEmpty) {
+          final newUrls = await ImageService.uploadImages(
+            files,
+            userId: blogDetail.userId!,
+            type: ImageType.blog,
           );
+
+          imagesUrl.addAll(newUrls);
         }
+
+        imagesUrl.removeWhere((url) => imagesToDelete.contains(url));
 
         final blog = UpdateBlog(
           id: blogDetail.id,
@@ -150,7 +157,7 @@ class BlogProvider extends ChangeNotifier {
           title: blogDetail.title,
           subtitle: blogDetail.subtitle,
           description: blogDetail.description,
-          imageUrl: imageUrl,
+          imagesUrl: imagesUrl,
         );
 
         Blog? newBlog;
@@ -166,6 +173,7 @@ class BlogProvider extends ChangeNotifier {
             if (blog.id == null) {
               throw Exception('Blog ID is required for editing');
             }
+            // Replace old blog to updated blog
             newBlog = await BlogService.edit(blog, blog.id!);
             final i1 = blogs.indexWhere((b) => b.id == newBlog!.id);
             if (i1 != -1) blogs[i1] = newBlog;
@@ -174,15 +182,9 @@ class BlogProvider extends ChangeNotifier {
             break;
         }
 
-        if (blogDetail.imageUrl != null &&
-            type == AddOrEditType.edit &&
-            (deleteImage || file != null)) {
-          await ImageService.deleteImage(
-            DeleteImageProps(
-              imageUrl: blogDetail.imageUrl!,
-              type: ImageType.blog,
-            ),
-          );
+        // Delete old images
+        if (imagesToDelete.isNotEmpty && type == AddOrEditType.edit) {
+          await ImageService.deleteImages(imagesToDelete, type: ImageType.blog);
         }
 
         return newBlog;
@@ -191,26 +193,26 @@ class BlogProvider extends ChangeNotifier {
     );
   }
 
-  Future<Blog?> addBlog(UpdateBlog blogDetail, {XFile? file}) async {
+  Future<Blog?> addBlog(UpdateBlog blogDetail, {List<XFile>? files}) async {
     return await addOrEdit(
       AddOrEditType.add,
       blogDetail,
-      deleteImage: false,
-      file: file,
+      imagesToDelete: [],
+      files: files,
       successMessage: 'Blog created successfully',
     );
   }
 
   Future<Blog?> editBlog(
     UpdateBlog blogDetail, {
-    required bool deleteImage,
-    XFile? file,
+    required List<String> imagesToDelete,
+    List<XFile>? files,
   }) async {
     return await addOrEdit(
       AddOrEditType.edit,
       blogDetail,
-      file: file,
-      deleteImage: deleteImage,
+      files: files,
+      imagesToDelete: imagesToDelete,
       successMessage: 'Blog updated successfully',
     );
   }

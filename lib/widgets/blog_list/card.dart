@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 class BlogCard extends StatelessWidget {
   final Blog blog;
   final int index;
-  final void Function(String) onDelete;
+  final void Function(Blog) onDelete;
 
   const BlogCard({
     super.key,
@@ -37,7 +37,7 @@ class BlogCard extends StatelessWidget {
       ),
     );
 
-    if (confirm == true) onDelete(blog.id);
+    if (confirm == true) onDelete(blog);
   }
 
   @override
