@@ -72,7 +72,10 @@ class _ProfileEditState extends State<ProfileEdit> {
     final blogProvider = context.read<BlogProvider>();
     final username = usernameCtrl.text.trim();
 
-    if (username.isEmpty) return;
+    if (username.isEmpty) {
+      auth.setMessage("username can't be empty", MessageType.error);
+      return;
+    }
 
     await auth.updateProfile(
       username: username,
@@ -82,10 +85,7 @@ class _ProfileEditState extends State<ProfileEdit> {
 
     await blogProvider.fetchInitialBlogs();
 
-    if (!mounted) return;
-
-    // Exit edit mode ONLY on success
-    if (auth.message?.type == MessageType.success) widget.onCancel();
+    widget.onCancel();
   }
 
   @override

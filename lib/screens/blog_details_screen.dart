@@ -182,13 +182,33 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(color: Theme.of(context).primaryColor),
                     ),
-                    child: Text(
-                      blog!.owner!.username!,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (blog!.owner!.avatarUrl != null)
+                          CircleAvatar(
+                            radius: 10,
+                            backgroundImage: NetworkImage(
+                              blog!.owner!.avatarUrl!,
+                            ),
+                          )
+                        else
+                          CircleAvatar(
+                            radius: 10,
+                            child: Icon(Icons.person, size: 15),
+                          ),
+
+                        SizedBox(width: 7),
+
+                        Text(
+                          blog!.owner!.username!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -216,3 +236,38 @@ class _BlogDetailPageState extends State<BlogDetailPage> {
     );
   }
 }
+
+    //  Container(
+    //                 padding: const EdgeInsets.fromLTRB(15, 3, 15, 5),
+    //                 decoration: BoxDecoration(
+    //                   color: Theme.of(context).colorScheme.surfaceContainer,
+    //                   borderRadius: BorderRadius.circular(15),
+    //                   border: Border.all(color: Theme.of(context).primaryColor),
+    //                 ),
+    //                 child: Row(
+    //                   mainAxisSize: MainAxisSize.min,
+    //                   children: [
+    //                     if (owner!.avatarUrl != null)
+    //                       CircleAvatar(
+    //                         radius: isWide ? 17 : 13,
+    //                         backgroundImage: NetworkImage(owner.avatarUrl!),
+    //                       )
+    //                     else
+    //                       CircleAvatar(
+    //                         radius: isWide ? 17 : 13,
+    //                         child: Icon(Icons.person, size: isWide ? null : 16),
+    //                       ),
+
+    //                     SizedBox(width: 15),
+
+    //                     Text(
+    //                       blog!.owner!.username!,
+    //                       style: TextStyle(
+    //                         fontSize: 14,
+    //                         color: Theme.of(context).colorScheme.primary,
+    //                         fontWeight: FontWeight.w500,
+    //                       ),
+    //                     ),
+    //                   ],
+    //                 ),
+    //               ),

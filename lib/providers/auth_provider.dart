@@ -26,7 +26,7 @@ class AuthProvider extends ChangeNotifier {
     _apiCallHandler = ApiCallHandler(
       startLoading: _startLoading,
       stopLoading: _stopLoading,
-      setMessage: _setMessage,
+      setMessage: setMessage,
     );
   }
 
@@ -55,7 +55,7 @@ class AuthProvider extends ChangeNotifier {
       switch (result) {
         case SafeSuccess(data: final profileData):
           if (profileData == null) {
-            _setMessage("Profile not found", MessageType.error);
+            setMessage("Profile not found", MessageType.error);
           } else {
             profile = profileData;
           }
@@ -63,7 +63,7 @@ class AuthProvider extends ChangeNotifier {
 
         case SafeFailure(errorMessage: final err):
           profile = null;
-          _setMessage(err, MessageType.error);
+          setMessage(err, MessageType.error);
           break;
       }
 
@@ -158,7 +158,7 @@ class AuthProvider extends ChangeNotifier {
 
   // ---------------- HELPERS ----------------
 
-  void _setMessage(String text, MessageType type) {
+  void setMessage(String text, MessageType type) {
     message = NotifMessage(text, type);
     notifyListeners();
   }

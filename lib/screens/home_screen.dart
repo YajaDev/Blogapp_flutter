@@ -115,6 +115,8 @@ class _BlogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width > 650;
+
     return GestureDetector(
       onTap: () => context.go('/blog/${blog.id}'),
       child: Card(
@@ -232,7 +234,7 @@ class _BlogCard extends StatelessWidget {
               ),
             ),
 
-            Spacer(),
+            if (isWide) Spacer(),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -253,11 +255,3 @@ class _BlogCard extends StatelessWidget {
     );
   }
 }
-// Positioned(
-//               bottom: 10,
-//               right: 10,
-//               child: Text(
-//                 Date.formatDate(blog.createdAt),
-//                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-//               ),
-//             ),

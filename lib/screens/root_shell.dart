@@ -1,7 +1,9 @@
+import 'package:blogapp_flutter/providers/auth_provider.dart';
 import 'package:blogapp_flutter/widgets/blog_form.dart';
 import 'package:blogapp_flutter/widgets/logo.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class RootShell extends StatelessWidget {
   final Widget child;
@@ -42,6 +44,28 @@ class RootShell extends StatelessWidget {
     return !(location == '/blogs' || location.startsWith('/blog/'));
   }
 
+  Widget? _avatar(BuildContext context, bool iswide) {
+    final profile = context.watch<AuthProvider>().profile;
+
+    if (profile == null) return null;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: GestureDetector(
+        onTap: () => context.go('/profile'),
+        child: profile.avatarUrl != null
+            ? CircleAvatar(
+                radius: iswide ? 17 : 13,
+                backgroundImage: NetworkImage(profile.avatarUrl!),
+              )
+            : CircleAvatar(
+                radius: iswide ? 17 : 13,
+                child: Icon(Icons.person, size: iswide ? null : 16),
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
@@ -53,6 +77,7 @@ class RootShell extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(
           title: const Logo(),
+          actions: [?_avatar(context, isWide)],
           centerTitle: true,
           shape: Border(
             bottom: BorderSide(
@@ -132,8 +157,8 @@ class RootShell extends StatelessWidget {
     // Narrow layout - bottom navigation bar (mobile)
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Logo(),
+        actions: [?_avatar(context, isWide)],
         backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
       ),
